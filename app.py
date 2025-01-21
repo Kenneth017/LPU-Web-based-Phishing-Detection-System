@@ -2030,6 +2030,6 @@ async def handle_exception(e):
     return await render_template('error.html', error='An unexpected error occurred'), 500
 
 ensure_db_directory()
-migrate_database()  # Then migrate if needed
+migrate_database()
 feedback_handler = FeedbackHandler()
 
