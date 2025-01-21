@@ -52,6 +52,20 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 logger = setup_logger(__name__)
 
+def convert_to_local_time(timestamp_str):
+    """Convert UTC timestamp to GMT+8"""
+    try:
+        # Parse the timestamp
+        dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+        # Make it timezone aware
+        dt = pytz.UTC.localize(dt)
+        # Convert to GMT+8
+        local_dt = dt.astimezone(timezone)
+        return local_dt.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        logger.error(f"Error converting timestamp: {str(e)}")
+        return timestamp_str
+
 def ensure_db_directory():
     db_dir = os.path.dirname('phishing_history.db')
     if db_dir and not os.path.exists(db_dir):
@@ -61,6 +75,8 @@ def get_db_connection():
     try:
         conn = sqlite3.connect('phishing_history.db')
         conn.row_factory = sqlite3.Row
+        # Set timezone pragma
+        conn.execute("PRAGMA timezone = 'Asia/Singapore'")
         return conn
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {str(e)}")
@@ -1086,72 +1102,106 @@ async def ml_dashboard():
         logger.error(f"Error in ML dashboard: {str(e)}", exc_info=True)
         return await render_template('error.html', error='An error occurred while loading the ML dashboard')
 
-@app.route('/result')
+@app.route('/check', methods=['POST'])
 @login_required
-async def result():
+async def check_input():
     try:
+        # Get start time for response time calculation
+        start_time = time.time()
+        
+        data = await request.get_json()
+        input_string = data.get('input', '').strip()
         user_id = session.get('user_id')
+        
+        # Get current time in GMT+8
+        current_time = datetime.now(timezone)
+        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Log the input for debugging
+        logger.info(f"Analyzing input: {input_string}")
+        
+        result = await analyze_input(input_string)
+        
+        # Calculate response time
+        response_time = time.time() - start_time
+        
+        # Initialize verdict priorities
+        verdict_priorities = {
+            'phishing': 0,
+            'malicious': 0,
+            'suspicious': 0,
+            'safe': 0
+        }
+        
+        # Count verdicts with priority logic
+        for vendor in result['vendor_analysis']:
+            verdict = vendor['verdict'].lower()
+            if verdict == 'phishing':
+                verdict_priorities['phishing'] += 1
+            elif verdict == 'malicious':
+                verdict_priorities['malicious'] += 1
+            elif verdict == 'suspicious':
+                verdict_priorities['suspicious'] += 1
+            elif verdict in ['clean', 'harmless', 'safe']:
+                verdict_priorities['safe'] += 1
+        
+        # Determine main verdict based on priority
+        main_verdict = 'safe'
+        if verdict_priorities['phishing'] > 0:
+            main_verdict = 'phishing'
+        elif verdict_priorities['malicious'] > 0:
+            main_verdict = 'malicious'
+        elif verdict_priorities['suspicious'] > 0:
+            main_verdict = 'suspicious'
+        
+        # Add main_verdict to the result
+        result['main_verdict'] = main_verdict
+        result['is_malicious'] = main_verdict != 'safe'
+        
+        # Store the result in database
         conn = get_db_connection()
         c = conn.cursor()
-        
-        # Get the latest analysis
-        c.execute("""
-            SELECT 
+        try:
+            c.execute('''
+                INSERT INTO analysis_history 
+                (input_string, input_type, is_malicious, community_score, metadata, 
+                vendor_analysis, user_id, analysis_date, main_verdict)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
                 input_string,
-                is_malicious,
-                main_verdict,
-                metadata,
-                vendor_analysis,
-                analysis_date
-            FROM analysis_history 
-            WHERE user_id = ?
-            ORDER BY analysis_date DESC 
-            LIMIT 1
-        """, (user_id,))
-        
-        analysis = c.fetchone()
-        conn.close()
-        
-        if not analysis:
-            return await render_template('result.html', error='No analysis found')
+                result['input_type'],
+                int(result['is_malicious']),
+                result['community_score'],
+                json.dumps(result['metadata']),
+                json.dumps(result['vendor_analysis']),
+                user_id,
+                formatted_time,  # Use the GMT+8 timestamp
+                main_verdict
+            ))
+            conn.commit()
+            
+            # Verify the insertion
+            c.execute("""
+                SELECT input_string, main_verdict, analysis_date 
+                FROM analysis_history 
+                WHERE input_string = ? 
+                ORDER BY analysis_date DESC 
+                LIMIT 1
+            """, (input_string,))
+            verification = c.fetchone()
+            logger.info(f"Verification of insertion: {verification}")
+            
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            raise
+        finally:
+            conn.close()
 
-        metadata = json.loads(analysis['metadata']) if analysis['metadata'] else {}
-        vendor_analysis = json.loads(analysis['vendor_analysis']) if analysis['vendor_analysis'] else []
-        
-        # Calculate probability based on vendor verdicts
-        total_vendors = len(vendor_analysis)
-        malicious_count = sum(1 for v in vendor_analysis if v['verdict'].lower() in ['phishing', 'malicious', 'suspicious'])
-        probability = malicious_count / total_vendors if total_vendors > 0 else 0
-
-        # Create features dictionary
-        features = {
-            'Final URL': metadata.get('final_url', 'N/A'),
-            'Serving IP': metadata.get('serving_ip', 'N/A'),
-            'Analysis Date': analysis['analysis_date'],
-            'Verdict': analysis['main_verdict'].capitalize(),
-            'Total Vendors': total_vendors,
-            'Malicious Detections': malicious_count
-        }
-        
-        result_data = {
-            'url': analysis['input_string'],
-            'is_phishing': analysis['is_malicious'],
-            'probability': probability,
-            'features': features,
-            'vendor_analysis': vendor_analysis
-        }
-        
-        return await render_template('result.html',
-                                     result_data=result_data,
-                                     url=analysis['input_string'],
-                                     is_phishing=analysis['is_malicious'],
-                                     probability=probability,
-                                     features=features,
-                                     vendor_analysis=vendor_analysis)
+        return redirect(url_for('result'))
         
     except Exception as e:
-        logger.error(f"Error in result route: {str(e)}", exc_info=True)
-        return await render_template('result.html', error='An error occurred while loading the results')
+        logger.error(f"Error in check_input: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/analysis_details/<path:url>')
 @login_required
