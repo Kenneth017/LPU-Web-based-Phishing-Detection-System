@@ -21,6 +21,10 @@ from urllib.parse import urlparse, urljoin
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import decode_header
+import warnings
+
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=InconsistentVersionWarning)
 
 # Set up logging
 def setup_logger():
