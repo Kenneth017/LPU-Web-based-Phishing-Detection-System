@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Email Analysis - Cyber Phishing Detection{% endblock %}
+
+{% block content %}
+<div class="email-analysis-container">
+    <h1 class="main-title">Email Phishing Analysis</h1>
+    <p class="subtitle">Upload an email (.msg file) for phishing detection analysis.</p>
+
+        <form id="email-analysis-form" class="analysis-form" method="POST" action="{{ url_for('email_analysis') }}" enctype="multipart/form-data">
+            <div class="input-group">
+                <label for="email-file" class="file-upload-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span class="label-text">Choose File</span>
+                    <div class="upload-progress"></div>
+                </label>
+                <input 
+                    type="file" 
+                    id="email-file" 
+                    name="email_file" 
+                    accept=".msg,.eml"
+                    required>
+                <div class="file-name-display"></div>
+                <small class="file-hint">Supported formats: .msg and .eml files</small>
+            </div>
+        
+            <div class="btn-analyze-container">
+                <button type="submit" class="btn btn-analyze">
+                    <i class="fas fa-search"></i> Analyze Email
+                </button>
+            </div>
+        </form>
+
+    <div id="analysis-result" class="hidden">
+        <!-- This section will be populated by JavaScript if needed -->
+    </div>
+
+    {% if history %}
+    <div class="recent-analysis">
+        <h2>Recent Email Analyses</h2>
+        <div class="table-responsive">
+            <table class="analysis-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Subject</th>
+                        <th>Result</th>
+                        <th>Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for analysis in history %}
+                    <tr>
+                        <td>{{ analysis.date }}</td>
+                        <td>{{ analysis.subject }}</td>
+                        <td>
+                            <span class="status-badge {{ analysis.verdict|lower }}">
+                                {{ analysis.verdict }}
+                            </span>
+                        </td>
+                        <td>{{ analysis.risk_score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='email_analysis.js') }}"></script>
+{% endblock %}

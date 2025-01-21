@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="profile-header">
+        <h1>User Profile</h1>
+
+    <div class="profile-content">
+        <!-- Account Settings Section -->
+        <div class="profile-section">
+            <h2>Account Settings</h2>
+            <form method="POST" action="{{ url_for('profile') }}" class="profile-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" value="{{ username }}" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    <input type="password" id="password" name="password" class="form-control">
+                    <small>Leave blank to keep current password</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="profile-section statistics-section">
+            <h2>Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Checks</h3>
+                    <div class="stat-value">{{ total_checks }}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Threats Detected</h3>
+                    <div class="stat-value">{{ total_threats }}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Detection Rate</h3>
+                    <div class="stat-value">{{ "%.2f"|format(detection_rate) }}%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Phishing</h3>
+                    <div class="stat-value">{{ phishing_detected }}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Malicious</h3>
+                    <div class="stat-value">{{ malicious_detected }}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Suspicious</h3>
+                    <div class="stat-value">{{ suspicious_detected }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity Section -->
+        <div class="profile-section activity-section">
+            <h2>Recent Activity</h2>
+            <div class="table-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Result</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for input_string, main_verdict, analysis_date in recent_activity %}
+                        <tr>
+                            <td>{{ input_string }}</td>
+                            <td>
+                                <span class="status-badge {{ main_verdict }}">
+                                    {{ main_verdict|capitalize }}
+                                </span>
+                            </td>
+                            <td>{{ analysis_date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

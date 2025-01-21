@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Result - Phishing Detection Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div id="result">
+            <h1>Analysis Result</h1>
+            
+            {% if error %}
+                <div class="alert danger">
+                    <h3>Error</h3>
+                    <p>{{ error }}</p>
+                </div>
+            {% else %}
+                <h2>{{ url }}</h2>
+                
+                <div id="result-text" class="{{ 'danger' if is_phishing else 'success' }}">
+                    {% if is_phishing %}
+                    <h3>⚠️ Warning: Potential Phishing Detected!</h3>
+                    <p>This URL shows characteristics commonly associated with phishing attempts.</p>
+                    {% else %}
+                    <h3>✅ URL Appears Safe</h3>
+                    <p>No obvious phishing indicators were detected.</p>
+                    {% endif %}
+                </div>
+
+                <p class="probability">Probability of being a phishing site: {{ (probability * 100)|round(2) }}%</p>
+
+                <div class="analysis-details">
+                    <h3>Analysis Details:</h3>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for feature, value in features.items() %}
+                            <tr>
+                                <td>{{ feature }}</td>
+                                <td>{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="vendor-analysis">
+                    <h3>Vendor Analysis</h3>
+                    {% for category in ['phishing', 'malicious', 'suspicious', 'clean'] %}
+                        <div id="{{ category }}-vendors-container">
+                            <h4>{{ category|capitalize }} Vendors</h4>
+                            <table id="{{ category }}-vendors">
+                                <thead>
+                                    <tr>
+                                        <th>Vendor</th>
+                                        <th>Verdict</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vendor in vendor_analysis %}
+                                        {% if (category == 'phishing' and vendor.verdict|lower == 'phishing') or
+                                              (category == 'malicious' and vendor.verdict|lower == 'malicious') or
+                                              (category == 'suspicious' and vendor.verdict|lower == 'suspicious') or
+                                              (category == 'clean' and vendor.verdict|lower in ['clean', 'harmless', 'safe']) %}
+                                            <tr>
+                                                <td>{{ vendor.name }}</td>
+                                                <td class="{{ vendor.verdict|lower }}">{{ vendor.verdict }}</td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="actions">
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">Back to Home</a>
+                <a href="{{ url_for('history') }}" class="btn btn-primary">View Full History</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

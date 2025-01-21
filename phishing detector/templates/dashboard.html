@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-globe"></i>
+            </div>
+            <div class="stat-details">
+                <h3>{% if session.get('is_admin') %}Total{% else %}Your{% endif %} URLs Checked</h3>
+                <div class="stat-value">{{ total_checks|default(0) }}</div>
+                {% if session.get('is_admin') %}
+                <span class="comparison-indicator">Global: {{ global_total_checks|default(0) }}</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-details">
+                <h3>{% if session.get('is_admin') %}Total{% else %}Your{% endif %} Threats Detected</h3>
+                <div class="stat-value">{{ total_threats|default(0) }}</div>
+                {% if session.get('is_admin') %}
+                <span class="comparison-indicator">Global: {{ global_total_threats|default(0) }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-details">
+                <h3>{% if session.get('is_admin') %}Overall{% else %}Your{% endif %} Detection Rate</h3>
+                <div class="stat-value">{{ "%.2f"|format(total_threat_percentage|default(0)) }}%</div>
+                <div class="stat-progress">
+                    <div class="progress-bar" style="width: {{ total_threat_percentage|default(0) }}%"></div>
+                </div>
+                {% if session.get('is_admin') %}
+                <span class="comparison-indicator">Global: {{ "%.2f"|format(global_threat_percentage|default(0)) }}%</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-charts">
+        <div class="chart-container">
+            <h2>Detection Trends</h2>
+            <div id="detectionTrendsChart"></div>
+        </div>
+        
+        <div class="chart-container">
+            <h2>URL Analysis Distribution</h2>
+            <div id="distributionChart"></div>
+        </div>
+    </div>
+
+    <div class="stats-breakdown">
+        <div class="stat-card">
+            <h3>Phishing</h3>
+            <div class="stat-value">{{ phishing_detected|default(0) }}</div>
+            {% if session.get('is_admin') %}
+            <span class="comparison-indicator">Global: {{ global_phishing_detected|default(0) }}</span>
+            {% endif %}
+        </div>
+        <div class="stat-card">
+            <h3>Malicious</h3>
+            <div class="stat-value">{{ malicious_detected|default(0) }}</div>
+            {% if session.get('is_admin') %}
+            <span class="comparison-indicator">Global: {{ global_malicious_detected|default(0) }}</span>
+            {% endif %}
+        </div>
+        <div class="stat-card">
+            <h3>Suspicious</h3>
+            <div class="stat-value">{{ suspicious_detected|default(0) }}</div>
+            {% if session.get('is_admin') %}
+            <span class="comparison-indicator">Global: {{ global_suspicious_detected|default(0) }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="recent-activity-section">
+        <div class="section-header">
+            <h2>Last 50 Analysis Activities</h2>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="exportDashboardData()">
+                    Export Dashboard Data
+                </button>
+            </div>
+        </div>
+        {% if recent_activity %}
+        <div class="table-container">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Input</th>
+                        <th>Result</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activity %}
+                    <tr>
+                        <td>
+                            <span class="text-truncate" title="{{ activity.input_string }}">{{ activity.input_string }}</span>
+                            <button class="btn-icon copy-btn" data-clipboard-text="{{ activity.input_string }}">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ activity.main_verdict }}">
+                                {{ activity.main_verdict|capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ activity.analysis_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No analysis activity to display.</p>
+        {% endif %}
+    </div>
+
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="detailContent"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.8/clipboard.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chartData = {{ chart_data|safe }};
+        console.log("Chart data:", chartData);
+        initializeDashboardCharts(chartData.trend_data, chartData.distribution_data);
+        
+        // Initialize clipboard
+        new ClipboardJS('.copy-btn');
+    });
+
+    function exportDashboardData() {
+        // Collect all dashboard data
+        const dashboardData = {
+            stats: {
+                total_checks: {{ total_checks|tojson }},
+                total_threats: {{ total_threats|tojson }},
+                phishing_detected: {{ phishing_detected|tojson }},
+                malicious_detected: {{ malicious_detected|tojson }},
+                suspicious_detected: {{ suspicious_detected|tojson }},
+                threat_percentage: {{ total_threat_percentage|tojson }}
+            },
+            {% if session.get('is_admin') %}
+            global_stats: {
+                total_checks: {{ global_total_checks|tojson }},
+                total_threats: {{ global_total_threats|tojson }},
+                phishing_detected: {{ global_phishing_detected|tojson }},
+                malicious_detected: {{ global_malicious_detected|tojson }},
+                suspicious_detected: {{ global_suspicious_detected|tojson }},
+                threat_percentage: {{ global_threat_percentage|tojson }}
+            },
+            {% endif %}
+            recent_activity: {{ recent_activity|tojson }},
+            chart_data: {{ chart_data|safe }}
+        };
+
+        // Convert data to CSV format
+        let csvContent = "Dashboard Export - {{ username }} - " + new Date().toISOString() + "\n\n";
+        
+        // Add Stats
+        csvContent += "User Statistics\n";
+        csvContent += `Total Checks,${dashboardData.stats.total_checks}\n`;
+        csvContent += `Total Threats,${dashboardData.stats.total_threats}\n`;
+        csvContent += `Phishing Detected,${dashboardData.stats.phishing_detected}\n`;
+        csvContent += `Malicious Detected,${dashboardData.stats.malicious_detected}\n`;
+        csvContent += `Suspicious Detected,${dashboardData.stats.suspicious_detected}\n`;
+        csvContent += `Threat Percentage,${dashboardData.stats.threat_percentage}%\n\n`;
+
+        {% if session.get('is_admin') %}
+        // Add Global Stats for admin
+        csvContent += "Global Statistics\n";
+        csvContent += `Total Checks,${dashboardData.global_stats.total_checks}\n`;
+        csvContent += `Total Threats,${dashboardData.global_stats.total_threats}\n`;
+        csvContent += `Phishing Detected,${dashboardData.global_stats.phishing_detected}\n`;
+        csvContent += `Malicious Detected,${dashboardData.global_stats.malicious_detected}\n`;
+        csvContent += `Suspicious Detected,${dashboardData.global_stats.suspicious_detected}\n`;
+        csvContent += `Threat Percentage,${dashboardData.global_stats.threat_percentage}%\n\n`;
+        {% endif %}
+
+        // Add Recent Activity
+        csvContent += "Recent Activity\n";
+        csvContent += "Input,Result,Date\n";
+        dashboardData.recent_activity.forEach(activity => {
+            csvContent += `${activity.input_string},${activity.main_verdict},${activity.analysis_date}\n`;
+        });
+
+        // Create and trigger download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `dashboard_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+</script>
+{% endblock %}
