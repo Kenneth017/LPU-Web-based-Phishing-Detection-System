@@ -5,6 +5,18 @@ This project was intended for educational purposes only at Lyceum of the Philipp
 ## Description
 A web-based application for detecting phishing attempts using machine learning.
 
+## Environment Setup
+
+1. Copy the `sample.env` file to a new file named `.env`
+2. Replace the placeholder values in `.env` with your actual configuration:
+   - Get a VirusTotal API key from [VirusTotal](https://www.virustotal.com/)
+   - Generate a secret key for Flask
+   - Set up an email for the application
+   - Configure your personal email
+   - Set up an app password for your email account if using Gmail
+3. Ensure your `.env` file is in the root directory of the project
+4. Do not commit your `.env` file to version control
+
 ## Features
 - Real-time URL analysis
 - Email phishing detection
