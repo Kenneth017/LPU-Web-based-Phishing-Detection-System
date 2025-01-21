@@ -7,7 +7,6 @@ extract-msg
 itsdangerous
 werkzeug
 email-validator
-aiosqlite
-hypercorn
 aiohttp
-python-dotenv
+hypercorn
+uvicorn
