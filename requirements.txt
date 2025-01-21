@@ -9,7 +9,7 @@ werkzeug
 email-validator
 aiohttp
 numpy
-xgboost==1.7.3
+xgboost==1.5.2
 scikit-learn==1.6.1
 pandas
 plotly
