@@ -1052,7 +1052,6 @@ async def check_input():
         conn = get_db_connection()
         c = conn.cursor()
         try:
-            # When inserting into the database, use current_time
             c.execute('''
                 INSERT INTO analysis_history 
                 (input_string, input_type, is_malicious, community_score, metadata, 
@@ -1088,7 +1087,14 @@ async def check_input():
         finally:
             conn.close()
 
-        return redirect(url_for('result'))
+        # Instead of redirecting, return the result as JSON
+        return jsonify({
+            'status': 'success',
+            'result': result,
+            'main_verdict': main_verdict,
+            'analysis_date': current_time,
+            'response_time': response_time
+        })
         
     except Exception as e:
         logger.error(f"Error in check_input: {str(e)}", exc_info=True)
