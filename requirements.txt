@@ -1,5 +1,4 @@
 Flask
-gunicorn
 quart
 python-dotenv
 beautifulsoup4
@@ -8,7 +7,7 @@ itsdangerous
 werkzeug
 email-validator
 aiohttp
-hypercorn
+hypercorn[uvloop]
 uvicorn
 numpy
 scikit-learn
@@ -25,4 +24,3 @@ bs4
 plotly-express
 email-validator
 python-multipart
-hypercorn[uvloop]
