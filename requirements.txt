@@ -24,3 +24,5 @@ plotly-express
 email-validator
 python-multipart
 hypercorn
+flask-socketio
+flask-cors
