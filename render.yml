@@ -6,7 +6,7 @@ services:
       apt-get update && apt-get install -y libgomp1
       pip install -r requirements.txt
       python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger')"
-    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: hypercorn app:app --bind 0.0.0.0:$PORT --workers 4
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
