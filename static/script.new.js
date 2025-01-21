@@ -511,7 +511,9 @@ async function analyzeInput() {
         return;
     }
 
-    setLoadingState(true);
+    // Show loading indicator
+    showLoadingIndicator();
+
     try {
         const response = await fetch(CONFIG.API_ENDPOINTS.CHECK, {
             method: 'POST',
@@ -532,9 +534,38 @@ async function analyzeInput() {
             throw new Error(data.error || 'Analysis failed');
         }
     } catch (error) {
+        hideLoadingIndicator();
         handleError(error, 'analyzeInput');
-    } finally {
-        setLoadingState(false);
+    }
+}
+
+function showLoadingIndicator() {
+    // Hide the result table if it's visible
+    const resultTable = document.getElementById('result');
+    if (resultTable) {
+        resultTable.style.display = 'none';
+    }
+
+    // Show a loading spinner or message
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+    } else {
+        // Create a loading indicator if it doesn't exist
+        const indicatorHtml = `
+            <div id="loading-indicator" class="loading-indicator">
+                <div class="spinner"></div>
+                <p>Analyzing... Please wait.</p>
+            </div>
+        `;
+        document.querySelector('.container').insertAdjacentHTML('beforeend', indicatorHtml);
+    }
+}
+
+function hideLoadingIndicator() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
     }
 }
 
