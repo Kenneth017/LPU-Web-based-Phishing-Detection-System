@@ -32,7 +32,6 @@ import extract_msg
 import hashlib
 from itsdangerous import URLSafeTimedSerializer
 from quart import request, flash, redirect, url_for, render_template
-import config
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -40,7 +39,7 @@ load_dotenv()
 
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
-app.config.from_object(config)
+
 
 
 logger = setup_logger(__name__)
@@ -2035,3 +2034,6 @@ ensure_db_directory()
 migrate_database()  # Then migrate if needed
 feedback_handler = FeedbackHandler()
 
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
