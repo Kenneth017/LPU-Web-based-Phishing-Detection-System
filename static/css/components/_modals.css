@@ -248,3 +248,18 @@
 .modal-content.loading {
     opacity: 0.7;
 }
+
+/* Add to your _modals.css */
+.modal-error {
+    text-align: center;
+    padding: 30px;
+}
+
+.modal-error h3 {
+    color: var(--danger-color);
+    margin-bottom: 15px;
+}
+
+.modal-error p {
+    margin-bottom: 20px;
+}
