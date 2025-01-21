@@ -12,6 +12,7 @@ from ml_metrics import MLMetricsAnalyzer
 from quart import request, jsonify
 import datetime
 from datetime import datetime
+import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
 from email_analysis_ml import EmailPhishingDetector
 import extract_msg
@@ -32,6 +33,13 @@ import extract_msg
 import hashlib
 from itsdangerous import URLSafeTimedSerializer
 from quart import request, flash, redirect, url_for, render_template
+
+# Set the timezone to GMT+8
+os.environ['TZ'] = 'Asia/Singapore'
+timezone = pytz.timezone('Asia/Singapore')
+
+# Use this when inserting dates
+datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S')
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -102,7 +110,7 @@ def init_db():
     else:
         c.execute('ALTER TABLE users_new RENAME TO users')
 
-    # Create analysis_history table
+    # Modify analysis_history table to include timezone and input-specific fields
     c.execute('''
     CREATE TABLE IF NOT EXISTS analysis_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,11 +122,24 @@ def init_db():
         metadata TEXT,
         vendor_analysis TEXT,
         user_id INTEGER,
-        analysis_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        analysis_date DATETIME DEFAULT (datetime('now', 'localtime')),
         confidence_score REAL,
+        timezone TEXT DEFAULT 'UTC',
+        last_checked DATETIME DEFAULT (datetime('now', 'localtime')),
+        response_time REAL,
+        status_code INTEGER,
         FOREIGN KEY (user_id) REFERENCES users(id)
     )
     ''')
+
+    # Add new indexes for better query performance
+    c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_last_checked ON analysis_history(last_checked)')
+    
+    # Set timezone to Asia/Singapore (GMT+8)
+    c.execute("PRAGMA timezone = 'Asia/Singapore'")
 
     # Handle user_feedback table
     try:
