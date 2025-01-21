@@ -1,5 +1,5 @@
 quart
-gunicorn
+gunicorn==20.1.0
 uvicorn[standard]
 python-dotenv
 beautifulsoup4
