@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h2>User Management</h2>
+        <a href="{{ url_for('create_user') }}" class="admin-btn admin-btn-primary">
+            <i class="fas fa-user-plus"></i> Create New User
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Password</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        <span class="status-indicator {{ 'status-active' if user.is_admin else '' }}"></span>
+                        {{ user.username }}
+                        {% if user.is_admin %}
+                        <span class="admin-badge">Admin</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td class="masked-password">{{ user.masked_password }}</td>
+                    <td class="actions">
+                        {% if user.id != session.user_id %}
+                            <form action="{{ url_for('admin_initiate_reset', user_id=user.id) }}" method="POST" class="inline-form">
+                                <button type="submit" class="admin-btn admin-btn-warning admin-btn-sm" 
+                                        onclick="return confirm('Send password reset link to {{ user.email }}?');">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                            </form>
+                            <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="inline-form">
+                                <button type="submit" class="admin-btn admin-btn-danger admin-btn-sm"
+                                        onclick="return confirm('Are you sure you want to delete {{ user.username }}?');">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">Current User</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
