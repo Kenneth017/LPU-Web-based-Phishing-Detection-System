@@ -1169,12 +1169,19 @@ async def result():
                                    features=features,
                                    vendor_analysis=vendor_analysis)
         
-        logger.info(f"Rendering result template with data: url={analysis['input_string']}, is_phishing={analysis['is_malicious']}")
-        return await render_template('result.html', ...)
+        # Add a small delay (e.g., 0.5 seconds)
+        await asyncio.sleep(0.5)
+
+        # Return a JSON response with the redirect URL
+        return jsonify({
+            'status': 'success',
+            'redirect': url_for('result')
+        })
         
     except Exception as e:
-        logger.error(f"Error in result route: {str(e)}", exc_info=True)
-        return await render_template('result.html', error='An error occurred while loading the results')
+        logger.error(f"Error in check_input: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/analysis_details/<path:url>')
 @login_required
