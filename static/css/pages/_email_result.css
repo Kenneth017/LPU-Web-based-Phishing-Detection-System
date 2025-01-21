@@ -1,0 +1,278 @@
+/* Remove max-width constraint from main container */
+.email-analysis-result {
+    width: 100%;
+    padding: 2rem;
+    margin: 0;
+}
+
+/* Adjust the result card to use full width */
+.result-card {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.result-card.phishing {
+    border: 2px solid #FF4B4B;
+}
+
+.result-card.safe {
+    border: 2px solid #50E3C2;
+}
+
+.result-header {
+    margin-bottom: 1.5rem;
+}
+
+.confidence-meter {
+    width: 100%;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.meter-fill {
+    height: 100%;
+    transition: width 0.5s ease-in-out;
+}
+
+.phishing .meter-fill {
+    background-color: #FF4B4B;
+}
+
+.safe .meter-fill {
+    background-color: #50E3C2;
+}
+
+.confidence-text {
+    display: block;
+    text-align: center;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.key-findings, .recommendations {
+    padding-left: 20px;
+}
+
+.key-findings li, .recommendations li {
+    margin-bottom: 10px;
+}
+
+/* Email content section full width */
+.email-content-section {
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+/* Email metadata full width */
+.email-metadata {
+    width: 100%;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Make sure long text in metadata wraps properly */
+.email-metadata p {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin-bottom: 0.5rem;
+}
+
+/* Improve table layout */
+.links-table, .attachment-table {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+}
+
+.links-table table, .attachment-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.links-table th,
+.links-table td,
+.attachment-table th,
+.attachment-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.links-table th,
+.attachment-table th {
+    background-color: rgba(255, 255, 255, 0.05);
+    font-weight: bold;
+}
+
+/* Set specific column widths for better distribution */
+.links-table th:nth-child(1),
+.links-table td:nth-child(1) {
+    width: 20%;
+}
+
+.links-table th:nth-child(2),
+.links-table td:nth-child(2) {
+    width: 50%;
+}
+
+.links-table th:nth-child(3),
+.links-table td:nth-child(3) {
+    width: 15%;
+}
+
+.links-table th:nth-child(4),
+.links-table td:nth-child(4) {
+    width: 15%;
+}
+
+/* Style for code elements */
+.links-table code,
+.attachment-table code {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: var(--accent-color);
+}
+
+/* Style for small text */
+.links-table small,
+.attachment-table small {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.risk-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.high-risk {
+    background: rgba(255, 75, 75, 0.2);
+    color: #FF4B4B;
+}
+
+.low-risk {
+    background: rgba(80, 227, 194, 0.2);
+    color: #50E3C2;
+}
+
+/* Updated email body container and tabs styling */
+.email-body-container {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.email-body-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-button.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.email-body-content {
+    width: 100%;
+    min-height: 300px;
+}
+
+.tab-content {
+    display: none;
+    width: 100%;
+    height: 100%;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.email-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+    width: 100%;
+    margin: 0;
+    color: var(--text-color);
+}
+
+.email-html {
+    background: white;
+    color: black;
+    padding: 1.5rem;
+    border-radius: 4px;
+    min-height: 300px;
+    overflow-x: auto;
+    width: 100%;
+}
+
+/* Make pre tags wrap text properly */
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    width: 100%;
+}
+
+.actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Hash values styling */
+.hash-values {
+    font-size: 0.85em;
+}
+
+.hash-values p {
+    margin: 0.25em 0;
+}
+
+.hash-values code {
+    word-break: break-all;
+    display: inline-block;
+    margin-top: 0.25em;
+}
+
+/* Hover effect for table rows */
+.links-table tr:hover,
+.attachment-table tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

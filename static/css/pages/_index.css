@@ -1,0 +1,200 @@
+/* pages/_index.css */
+.index-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.main-title {
+    color: var(--accent-color);
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.subtitle {
+    color: var(--text-color-secondary);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Analysis Form */
+.analysis-form {
+    background-color: rgba(255,255,255,0.05);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.input-group {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.analysis-input {
+    width: 100%;
+    padding: 1rem;
+    background-color: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--text-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.analysis-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(80, 227, 194, 0.2);
+}
+
+.btn-analyze-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+.btn-analyze {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    min-width: 200px;
+    background: linear-gradient(135deg, var(--accent-color) 0%, #4CA9FF 100%);
+    color: var(--primary-bg);
+    border: none;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin: 0 auto;
+}
+
+.btn-analyze:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(80, 227, 194, 0.3);
+}
+
+/* Container styles */
+.content-wrapper {
+    max-width: 100%;
+    padding: 2rem;
+}
+
+/* Recent Checks Section */
+.recent-checks {
+    margin-top: 3rem;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Table Styles */
+.wide-table {
+    width: 100%;
+    min-width: 1000px; /* Force a minimum width */
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    table-layout: fixed;
+}
+
+.wide-table th,
+.wide-table td {
+    padding: 12px;
+    text-align: left;
+    background-color: rgba(255,255,255,0.05);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wide-table th {
+    background-color: rgba(255,255,255,0.1);
+    color: var(--accent-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+}
+
+.wide-table .url-column {
+    width: 60%;
+}
+
+.wide-table th:nth-child(2),
+.wide-table td:nth-child(2) {
+    width: 20%;
+}
+
+.wide-table th:nth-child(3),
+.wide-table td:nth-child(3) {
+    width: 20%;
+}
+
+/* Ensure the table takes up full width of its container */
+.recent-checks .table-responsive {
+    max-width: 100%;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+}
+
+/* Add some spacing between rows */
+.wide-table tr {
+    margin-bottom: 8px;
+}
+
+/* Style for the View Full History button */
+.actions {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.btn-secondary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .index-container {
+        padding: 1rem;
+    }
+
+    .wide-table {
+        font-size: 0.9rem;
+    }
+
+    .wide-table .url-column {
+        width: 50%;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-title {
+        font-size: 2rem;
+    }
+
+    .btn-analyze {
+        width: 100%;
+    }
+
+    .wide-table th,
+    .wide-table td {
+        padding: 8px;
+    }
+}
