@@ -14,3 +14,4 @@ numpy
 scikit-learn
 pandas
 plotly
+xgboost
