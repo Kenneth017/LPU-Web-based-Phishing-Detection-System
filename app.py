@@ -293,11 +293,31 @@ async def home():
 @login_required
 async def check_input():
     try:
+        # Get start time for response time calculation
+        start_time = time.time()
+        
+        # Get input and validate
         data = await request.get_json()
         input_string = data.get('input', '').strip()
+        
+        if not input_string:
+            raise ValueError("Input string cannot be empty")
+            
         user_id = session.get('user_id')
         
+        # Set timezone to GMT+8
+        timezone = pytz.timezone('Asia/Singapore')
+        current_time = datetime.now(timezone)
+        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Log the input for debugging
+        logger.info(f"Analyzing input: {input_string}")
+        
+        # Perform the analysis
         result = await analyze_input(input_string)
+        
+        # Calculate response time
+        response_time = time.time() - start_time
         
         # Initialize verdict priorities
         verdict_priorities = {
@@ -332,30 +352,68 @@ async def check_input():
         result['main_verdict'] = main_verdict
         result['is_malicious'] = main_verdict != 'safe'
         
-        # Store the result in database
+        # Log the analysis result
+        logger.info(f"Analysis result for {input_string}: {main_verdict}")
+        
+        # Store the result in database with timezone information
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute('''
-            INSERT INTO analysis_history 
-            (input_string, input_type, is_malicious, community_score, metadata, vendor_analysis, user_id, analysis_date, main_verdict)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            input_string,
-            result['input_type'],
-            int(result['is_malicious']),
-            result['community_score'],
-            json.dumps(result['metadata']),
-            json.dumps(result['vendor_analysis']),
-            user_id,
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            main_verdict
-        ))
-        conn.commit()
-        conn.close()
+        
+        try:
+            c.execute('''
+                INSERT INTO analysis_history 
+                (input_string, input_type, is_malicious, community_score, metadata, 
+                vendor_analysis, user_id, analysis_date, main_verdict, 
+                timezone, response_time, last_checked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                input_string,
+                result['input_type'],
+                int(result['is_malicious']),
+                result['community_score'],
+                json.dumps(result['metadata']),
+                json.dumps(result['vendor_analysis']),
+                user_id,
+                formatted_time,
+                main_verdict,
+                'Asia/Singapore',
+                response_time,
+                formatted_time
+            ))
+            conn.commit()
+            
+            # Verify the insertion
+            c.execute("""
+                SELECT input_string, main_verdict, analysis_date 
+                FROM analysis_history 
+                WHERE input_string = ? 
+                ORDER BY analysis_date DESC 
+                LIMIT 1
+            """, (input_string,))
+            verification = c.fetchone()
+            logger.info(f"Verification of insertion: {verification}")
+            
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            raise
+        finally:
+            conn.close()
 
-        # Instead of returning JSON directly, redirect to result page
+        # Store analysis result in session for result page
+        session['last_analysis'] = {
+            'input_string': input_string,
+            'main_verdict': main_verdict,
+            'is_malicious': result['is_malicious'],
+            'analysis_date': formatted_time,
+            'metadata': result['metadata'],
+            'vendor_analysis': result['vendor_analysis']
+        }
+
         return redirect(url_for('result'))
         
+    except ValueError as ve:
+        logger.warning(f"Validation error: {str(ve)}")
+        return jsonify({'error': str(ve)}), 400
     except Exception as e:
         logger.error(f"Error in check_input: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
