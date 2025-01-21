@@ -34,12 +34,12 @@ import hashlib
 from itsdangerous import URLSafeTimedSerializer
 from quart import request, flash, redirect, url_for, render_template
 
-# Set the timezone to GMT+8
-os.environ['TZ'] = 'Asia/Singapore'
-timezone = pytz.timezone('Asia/Singapore')
+# Add these lines instead:
+singapore_tz = pytz.timezone('Asia/Singapore')
 
-# Use this when inserting dates
-datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S')
+def get_singapore_time():
+    """Get current time in Singapore timezone (GMT+8)"""
+    return datetime.now(singapore_tz).strftime('%Y-%m-%d %H:%M:%S')
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -57,10 +57,10 @@ def convert_to_local_time(timestamp_str):
     try:
         # Parse the timestamp
         dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-        # Make it timezone aware
+        # Make it timezone aware (assuming stored time is in UTC)
         dt = pytz.UTC.localize(dt)
         # Convert to GMT+8
-        local_dt = dt.astimezone(timezone)
+        local_dt = dt.astimezone(singapore_tz)
         return local_dt.strftime('%Y-%m-%d %H:%M:%S')
     except Exception as e:
         logger.error(f"Error converting timestamp: {str(e)}")
@@ -75,8 +75,10 @@ def get_db_connection():
     try:
         conn = sqlite3.connect('phishing_history.db')
         conn.row_factory = sqlite3.Row
-        # Set timezone pragma
+        # Set timezone to Asia/Singapore
         conn.execute("PRAGMA timezone = 'Asia/Singapore'")
+        # Force SQLite to use Singapore timezone for datetime functions
+        conn.execute("SELECT datetime('now', 'localtime')")
         return conn
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {str(e)}")
@@ -434,7 +436,7 @@ async def ws():
                         json.dumps(result['metadata']),
                         json.dumps(result['vendor_analysis']),
                         user_id,
-                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        get_singapore_time(),
                         main_verdict
                     ))
                     conn.commit()
@@ -1188,7 +1190,7 @@ async def reanalyze():
             json.dumps(result['metadata']),
             json.dumps(result['vendor_analysis']),
             session.get('user_id'),
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            get_singapore_time(),
             main_verdict
         ))
         
@@ -1420,7 +1422,7 @@ async def email_analysis():
                 # Add additional information to the result
                 result['subject'] = email_data['subject']
                 result['sender'] = email_data['sender']
-                result['date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                result['date'] = get_singapore_time()
                 result['html_content'] = email_data.get('html_content', '')
                 result['attachments'] = email_data.get('attachments', [])
                 
@@ -1536,7 +1538,7 @@ async def email_analysis_result():
             input_string = result['sender']  # or could be result['subject']
             input_type = 'email'
             main_verdict = 'phishing' if result['is_phishing'] else 'safe'
-            analysis_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            analysis_date = get_singapore_time()
             is_malicious = 1 if result['is_phishing'] else 0
             
             # Convert features and additional data to JSON string for metadata
