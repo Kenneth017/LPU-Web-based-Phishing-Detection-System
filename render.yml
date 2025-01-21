@@ -6,7 +6,7 @@ services:
       apt-get update && apt-get install -y libgomp1
       pip install -r requirements.txt
       python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger')"
-    startCommand: hypercorn app:app --bind 0.0.0.0:$PORT --access-logfile - --error-logfile - --worker-class uvicorn.workers.UvicornWorker
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 4
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
