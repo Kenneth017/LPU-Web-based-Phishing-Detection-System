@@ -2,8 +2,10 @@ Flask
 gunicorn
 quart
 python-dotenv
-sqlite3
 beautifulsoup4
 extract-msg
 itsdangerous
 werkzeug
+email-validator
+aiosqlite
+hypercorn
