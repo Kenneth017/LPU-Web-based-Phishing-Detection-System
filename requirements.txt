@@ -9,3 +9,4 @@ werkzeug
 email-validator
 aiosqlite
 hypercorn
+uvicorn
