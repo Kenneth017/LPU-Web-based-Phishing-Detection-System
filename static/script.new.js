@@ -519,10 +519,18 @@ async function analyzeInput() {
             body: JSON.stringify({ input })
         });
 
-        if (!response.ok) throw new Error('Analysis failed');
+        if (!response.ok) {
+            throw new Error('Analysis failed');
+        }
+
+        const data = await response.json();
         
-        const result = await response.json();
-        displayResult(result);
+        if (data.status === 'success' && data.redirect) {
+            // Redirect to the result page
+            window.location.href = data.redirect;
+        } else {
+            throw new Error(data.error || 'Analysis failed');
+        }
     } catch (error) {
         handleError(error, 'analyzeInput');
     } finally {
