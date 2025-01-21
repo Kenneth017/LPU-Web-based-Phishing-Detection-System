@@ -22,4 +22,3 @@ bs4
 plotly-express
 email-validator
 python-multipart
-gunicorn
