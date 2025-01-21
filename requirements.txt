@@ -10,3 +10,7 @@ email-validator
 aiohttp
 hypercorn
 uvicorn
+numpy
+scikit-learn
+pandas
+plotly
