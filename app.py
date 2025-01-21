@@ -1087,18 +1087,98 @@ async def check_input():
         finally:
             conn.close()
 
-        # Return the result as JSON instead of redirecting
-        return jsonify({
-            'status': 'success',
-            'result': result,
+        # Store the result in session for the result page
+        session['analysis_result'] = {
+            'input_string': input_string,
             'main_verdict': main_verdict,
+            'is_malicious': result['is_malicious'],
+            'community_score': result['community_score'],
+            'metadata': result['metadata'],
+            'vendor_analysis': result['vendor_analysis'],
             'analysis_date': current_time,
             'response_time': response_time
-        })
+        }
+
+        # Instead of returning JSON directly, redirect to result page
+        return redirect(url_for('result'))
         
     except Exception as e:
         logger.error(f"Error in check_input: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+@app.route('/result')
+@login_required
+async def result():
+    try:
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        c = conn.cursor()
+        
+        # Get the latest analysis
+        c.execute("""
+            SELECT 
+                input_string,
+                is_malicious,
+                main_verdict,
+                metadata,
+                vendor_analysis,
+                analysis_date,
+                community_score
+            FROM analysis_history 
+            WHERE user_id = ?
+            ORDER BY analysis_date DESC 
+            LIMIT 1
+        """, (user_id,))
+        
+        analysis = c.fetchone()
+        conn.close()
+        
+        if not analysis:
+            return await render_template('result.html', error='No analysis found')
+
+        metadata = json.loads(analysis['metadata']) if analysis['metadata'] else {}
+        vendor_analysis = json.loads(analysis['vendor_analysis']) if analysis['vendor_analysis'] else []
+        
+        # Calculate probability based on vendor verdicts
+        total_vendors = len(vendor_analysis)
+        malicious_count = sum(1 for v in vendor_analysis if v['verdict'].lower() in ['phishing', 'malicious', 'suspicious'])
+        probability = malicious_count / total_vendors if total_vendors > 0 else 0
+
+        # Convert analysis_date to Singapore time
+        analysis_date = datetime.strptime(analysis['analysis_date'], '%Y-%m-%d %H:%M:%S')
+        singapore_time = analysis_date.replace(tzinfo=pytz.UTC).astimezone(singapore_tz)
+        formatted_date = singapore_time.strftime('%Y-%m-%d %H:%M:%S %Z')
+
+        # Create features dictionary
+        features = {
+            'Final URL': metadata.get('final_url', 'N/A'),
+            'Serving IP': metadata.get('serving_ip', 'N/A'),
+            'Analysis Date': formatted_date,
+            'Verdict': analysis['main_verdict'].capitalize(),
+            'Total Vendors': total_vendors,
+            'Malicious Detections': malicious_count,
+            'Community Score': analysis['community_score']
+        }
+        
+        result_data = {
+            'url': analysis['input_string'],
+            'is_phishing': analysis['is_malicious'],
+            'probability': probability,
+            'features': features,
+            'vendor_analysis': vendor_analysis
+        }
+        
+        return await render_template('result.html',
+                                     result_data=result_data,
+                                     url=analysis['input_string'],
+                                     is_phishing=analysis['is_malicious'],
+                                     probability=probability,
+                                     features=features,
+                                     vendor_analysis=vendor_analysis)
+        
+    except Exception as e:
+        logger.error(f"Error in result route: {str(e)}", exc_info=True)
+        return await render_template('result.html', error='An error occurred while loading the results')
 
 @app.route('/analysis_details/<path:url>')
 @login_required
