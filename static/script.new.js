@@ -328,24 +328,11 @@ async function viewDetails(url) {
         console.error('Error fetching details:', error);
         
         // Show error in modal
-        const modal = document.getElementById('detailModal');
-        if (modal) {
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <div class="modal-error">
-                        <h3>Error Loading Details</h3>
-                        <p>Failed to load analysis details. Please try again.</p>
-                        <button onclick="modal.style.display='none'" class="btn btn-secondary">Close</button>
-                    </div>
-                </div>
-            `;
-        }
+        showDetailsModal({ error: error.message || 'An unknown error occurred' });
     }
 }
 
 function showDetailsModal(details) {
-    // Create or get modal container
     let modal = document.getElementById('detailModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -354,85 +341,93 @@ function showDetailsModal(details) {
         document.body.appendChild(modal);
     }
 
-    // Show loading state first
-    modal.innerHTML = `
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div class="modal-loader">
-                <div class="spinner"></div>
-                <p>Loading analysis details...</p>
+    let modalContent;
+
+    if (details.loading) {
+        modalContent = `
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div class="modal-loader">
+                    <div class="spinner"></div>
+                    <p>Loading analysis details...</p>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    } else if (details.error) {
+        modalContent = `
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div class="modal-error">
+                    <h3>Error Loading Details</h3>
+                    <p>Failed to load analysis details. Please try again.</p>
+                    <p class="error-message">Error: ${details.error}</p>
+                    <button class="btn btn-secondary modal-close">Close</button>
+                </div>
+            </div>
+        `;
+    } else {
+        modalContent = `
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Analysis Details</h2>
+                
+                <div class="details-section">
+                    <p><strong>URL:</strong> ${details.input_string || details.url || details.original_input || 'N/A'}</p>
+                    <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="status-badge ${details.main_verdict?.toLowerCase() || 'unknown'}">
+                            ${(details.main_verdict || 'Unknown').toUpperCase()}
+                        </span>
+                    </p>
+                    <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
+                </div>
+
+                ${details.metadata ? `
+                    <div class="metadata-section">
+                        <h3>Additional Information</h3>
+                        ${Object.entries(details.metadata)
+                            .filter(([key, value]) => value !== null && value !== undefined)
+                            .map(([key, value]) => `
+                                <p><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</p>
+                            `).join('')}
+                    </div>
+                ` : ''}
+
+                <div class="vendor-analysis">
+                    <h3>Vendor Analysis</h3>
+                    <table class="vendor-table">
+                        <thead>
+                            <tr>
+                                <th>Vendor</th>
+                                <th>Verdict</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${details.vendor_analysis
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map(vendor => `
+                                    <tr>
+                                        <td>${vendor.name}</td>
+                                        <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
+                                    </tr>
+                                `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    modal.innerHTML = modalContent;
     modal.style.display = 'block';
 
-    // Prepare the modal content
-    const modalContent = `
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Analysis Details</h2>
-            
-            <div class="details-section">
-                <p><strong>URL:</strong> ${details.input_string || details.url || details.original_input || 'N/A'}</p>
-                <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
-                <p><strong>Status:</strong> 
-                    <span class="status-badge ${details.main_verdict?.toLowerCase() || 'unknown'}">
-                        ${(details.main_verdict || 'Unknown').toUpperCase()}
-                    </span>
-                </p>
-                <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
-            </div>
-
-            ${details.metadata ? `
-                <div class="metadata-section">
-                    <h3>Additional Information</h3>
-                    ${Object.entries(details.metadata)
-                        .filter(([key, value]) => value !== null && value !== undefined)
-                        .map(([key, value]) => `
-                            <p><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</p>
-                        `).join('')}
-                </div>
-            ` : ''}
-
-            <div class="vendor-analysis">
-                <h3>Vendor Analysis</h3>
-                <table class="vendor-table">
-                    <thead>
-                        <tr>
-                            <th>Vendor</th>
-                            <th>Verdict</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${details.vendor_analysis
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(vendor => `
-                                <tr>
-                                    <td>${vendor.name}</td>
-                                    <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
-                                </tr>
-                            `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
-    // Set the content after a short delay
-    setTimeout(() => {
-        modal.innerHTML = modalContent;
-    }, 300);
-
-    // Show the modal after content is set
-    requestAnimationFrame(() => {
-        modal.style.display = 'block';
-    });
-
     // Add event listeners
-    const closeBtn = modal.querySelector('.close');
-    closeBtn.onclick = () => {
-        modal.style.display = 'none';
-    };
+    const closeButtons = modal.querySelectorAll('.close, .modal-close');
+    closeButtons.forEach(button => {
+        button.onclick = () => {
+            modal.style.display = 'none';
+        };
+    });
 
     window.onclick = (event) => {
         if (event.target === modal) {
