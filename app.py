@@ -126,7 +126,7 @@ def init_db():
     else:
         c.execute('ALTER TABLE users_new RENAME TO users')
 
-    # Modify analysis_history table to include timezone and input-specific fields
+    # Create or modify analysis_history table
     c.execute('''
     CREATE TABLE IF NOT EXISTS analysis_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,21 +138,39 @@ def init_db():
         metadata TEXT,
         vendor_analysis TEXT,
         user_id INTEGER,
-        analysis_date DATETIME DEFAULT (datetime('now', 'localtime')),
+        analysis_date DATETIME DEFAULT CURRENT_TIMESTAMP,
         confidence_score REAL,
-        timezone TEXT DEFAULT 'UTC',
-        last_checked DATETIME DEFAULT (datetime('now', 'localtime')),
-        response_time REAL,
-        status_code INTEGER,
         FOREIGN KEY (user_id) REFERENCES users(id)
     )
     ''')
 
-    # Add new indexes for better query performance
+    # Check if new columns exist, if not add them
+    c.execute("PRAGMA table_info(analysis_history)")
+    columns = [column[1] for column in c.fetchall()]
+    
+    # Add new columns if they don't exist
+    if 'timezone' not in columns:
+        c.execute("ALTER TABLE analysis_history ADD COLUMN timezone TEXT DEFAULT 'UTC'")
+    
+    if 'response_time' not in columns:
+        c.execute("ALTER TABLE analysis_history ADD COLUMN response_time REAL")
+    
+    if 'last_checked' not in columns:
+        c.execute("ALTER TABLE analysis_history ADD COLUMN last_checked DATETIME")
+    
+    if 'status_code' not in columns:
+        c.execute("ALTER TABLE analysis_history ADD COLUMN status_code INTEGER")
+
+    # Create indexes
     c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_last_checked ON analysis_history(last_checked)')
+    
+    # Only create last_checked index if the column exists
+    try:
+        c.execute('CREATE INDEX IF NOT EXISTS idx_last_checked ON analysis_history(last_checked)')
+    except sqlite3.OperationalError as e:
+        print(f"Note: Could not create last_checked index: {e}")
     
     # Set timezone to Asia/Singapore (GMT+8)
     c.execute("PRAGMA timezone = 'Asia/Singapore'")
