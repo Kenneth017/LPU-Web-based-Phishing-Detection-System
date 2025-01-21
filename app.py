@@ -1161,22 +1161,16 @@ async def result():
             'Malicious Detections': malicious_count,
             'Community Score': analysis['community_score']
         }
-        
-        result_data = {
-            'url': analysis['input_string'],
-            'is_phishing': analysis['is_malicious'],
-            'probability': probability,
-            'features': features,
-            'vendor_analysis': vendor_analysis
-        }
-        
+
         return await render_template('result.html',
-                                     result_data=result_data,
-                                     url=analysis['input_string'],
-                                     is_phishing=analysis['is_malicious'],
-                                     probability=probability,
-                                     features=features,
-                                     vendor_analysis=vendor_analysis)
+                                   url=analysis['input_string'],
+                                   is_phishing=analysis['is_malicious'],
+                                   probability=probability,
+                                   features=features,
+                                   vendor_analysis=vendor_analysis)
+        
+        logger.info(f"Rendering result template with data: url={analysis['input_string']}, is_phishing={analysis['is_malicious']}")
+        return await render_template('result.html', ...)
         
     except Exception as e:
         logger.error(f"Error in result route: {str(e)}", exc_info=True)
