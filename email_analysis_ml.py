@@ -699,22 +699,39 @@ class EmailPhishingDetector:
             raise
 
     def load_model(self, model_dir='models'):
-        """Load a trained model and vectorizer"""
+        """Load a trained model and vectorizer with fallback options"""
         try:
             print(f"Loading model from {model_dir}...")
-            model = joblib.load(os.path.join(model_dir, 'phishing_model.joblib'))
             
-            # Add this check for XGBoost models
-            if isinstance(model, XGBClassifier):
-                model.use_label_encoder = False
-                
-            self.model = model
+            # Try loading the model with error handling
+            try:
+                self.model = joblib.load(os.path.join(model_dir, 'phishing_model.joblib'))
+            except Exception as model_error:
+                print(f"Error loading XGBoost model: {str(model_error)}")
+                print("Initializing new XGBoost model...")
+                # Initialize a new XGBoost model with compatible parameters
+                self.model = XGBClassifier(
+                    n_estimators=100,
+                    learning_rate=0.1,
+                    max_depth=5,
+                    random_state=42,
+                    eval_metric='logloss'
+                )
+            
+            # Load other components
             self.tfidf = joblib.load(os.path.join(model_dir, 'tfidf_vectorizer.joblib'))
             self.feature_names = joblib.load(os.path.join(model_dir, 'feature_names.joblib'))
-            self.trained = True
-            print("Model loaded successfully")
+            
+            # Set trained flag based on whether we need to retrain
+            self.trained = hasattr(self.model, 'booster')
+            
+            if not self.trained:
+                print("Warning: Model needs to be retrained")
+            else:
+                print("Model loaded successfully")
+                
         except Exception as e:
-            print(f"Error loading model: {str(e)}")
+            print(f"Error loading model components: {str(e)}")
             raise
 
 # Enable progress bar for pandas operations
