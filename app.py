@@ -1087,7 +1087,7 @@ async def check_input():
         finally:
             conn.close()
 
-        # Store the result in session for the result page
+        # Store the result in session
         session['analysis_result'] = {
             'input_string': input_string,
             'main_verdict': main_verdict,
@@ -1095,12 +1095,14 @@ async def check_input():
             'community_score': result['community_score'],
             'metadata': result['metadata'],
             'vendor_analysis': result['vendor_analysis'],
-            'analysis_date': current_time,
-            'response_time': response_time
+            'analysis_date': current_time
         }
 
-        # Instead of returning JSON directly, redirect to result page
-        return redirect(url_for('result'))
+        # Return a JSON response with the redirect URL
+        return jsonify({
+            'status': 'success',
+            'redirect': url_for('result')
+        })
         
     except Exception as e:
         logger.error(f"Error in check_input: {str(e)}", exc_info=True)
