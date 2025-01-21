@@ -1065,7 +1065,7 @@ async def check_input():
                 json.dumps(result['metadata']),
                 json.dumps(result['vendor_analysis']),
                 user_id,
-                current_time,  # Use the GMT+8 timestamp
+                current_time,
                 main_verdict
             ))
             conn.commit()
@@ -1087,7 +1087,7 @@ async def check_input():
         finally:
             conn.close()
 
-        # Instead of redirecting, return the result as JSON
+        # Return the result as JSON instead of redirecting
         return jsonify({
             'status': 'success',
             'result': result,
