@@ -1,6 +1,5 @@
 quart
-uvicorn[standard]
-gunicorn
+hypercorn
 python-dotenv
 beautifulsoup4
 extract-msg
