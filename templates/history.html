@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}URL Check History - Phishing Detection Tool{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1>URL Check History</h1>
+    
+    <form class="filters" method="get" id="filter-form">
+        <div class="filter-group">
+            <label for="sort">Sort by:</label>
+            <select name="sort" id="sort">
+                <option value="analysis_date" {% if sort_by == 'analysis_date' %}selected{% endif %}>Date</option>
+                <option value="input_string" {% if sort_by == 'input_string' %}selected{% endif %}>Input</option>
+                <option value="input_type" {% if sort_by == 'input_type' %}selected{% endif %}>Type</option>
+                <option value="main_verdict" {% if sort_by == 'main_verdict' %}selected{% endif %}>Result</option>
+            </select>
+
+            <label for="order">Order:</label>
+            <select name="order" id="order">
+                <option value="desc" {% if order == 'desc' %}selected{% endif %}>Descending</option>
+                <option value="asc" {% if order == 'asc' %}selected{% endif %}>Ascending</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="type">Type:</label>
+            <select name="type" id="type">
+                <option value="all" {% if type_filter == 'all' %}selected{% endif %}>All Types</option>
+                <option value="url" {% if type_filter == 'url' %}selected{% endif %}>URL</option>
+                <option value="domain" {% if type_filter == 'domain' %}selected{% endif %}>Domain</option>
+                <option value="ip" {% if type_filter == 'ip' %}selected{% endif %}>IP</option>
+                <option value="hash" {% if type_filter == 'hash' %}selected{% endif %}>Hash</option>
+                <option value="email" {% if type_filter == 'email' %}selected{% endif %}>Email</option>
+            </select>
+            
+            <label for="filter">Result:</label>
+            <select name="filter" id="filter">
+                <option value="all" {% if filter_result == 'all' %}selected{% endif %}>All Results</option>
+                <option value="safe" {% if filter_result == 'safe' %}selected{% endif %}>Safe</option>
+                <option value="suspicious" {% if filter_result == 'suspicious' %}selected{% endif %}>Suspicious</option>
+                <option value="malicious" {% if filter_result == 'malicious' %}selected{% endif %}>Malicious</option>
+                <option value="phishing" {% if filter_result == 'phishing' %}selected{% endif %}>Phishing</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="date-from">From:</label>
+            <input type="date" id="date-from" name="date_from" value="{{ date_from or '' }}">
+    
+            <label for="date-to">To:</label>
+            <input type="date" id="date-to" name="date_to" value="{{ date_to or '' }}">
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <button type="button" class="btn btn-secondary" id="reset-filters-btn">Reset Filters</button>
+            <button type="button" class="btn btn-secondary" onclick="exportHistory()">
+                <i class="fas fa-download"></i> Export History
+            </button>
+        </div>
+    </form>
+    
+    <div class="table-responsive">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th class="input-column">Input</th>
+                    <th class="type-column">Type</th>
+                    <th class="result-column">Result</th>
+                    <th class="date-column">Date</th>
+                    <th class="actions-column">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                <tr>
+                    <td class="input-cell">
+                        <span class="input-text" title="{{ item.input_string }}">{{ item.input_string }}</span>
+                        <button class="copy-btn" data-clipboard-text="{{ item.input_string }}">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </td>
+                    <td><span class="input-type {{ item.input_type }}">{{ item.input_type }}</span></td>
+                    <td>
+                        <span class="status-badge {{ item.main_verdict }}">
+                            {{ item.main_verdict|capitalize }}
+                        </span>
+                    </td>
+                    <td>{{ item.analysis_date }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon view-details-btn" data-url="{{ item.input_string }}">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-icon" onclick="reanalyze('{{ item.input_string }}')">
+                                <i class="fas fa-redo"></i> Reanalyze
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=page-1, sort=sort_by, order=order, filter=filter_result, type=type_filter, date_from=date_from, date_to=date_to) }}">&laquo; Previous</a>
+                </li>
+            {% endif %}
+            
+            {% set start_page = page - 2 if page > 2 else 1 %}
+            {% set end_page = (total // per_page) + 1 %}
+            {% set display_pages = 5 %}
+            
+            {% if start_page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=1, sort=sort_by, order=order, filter=filter_result, type=type_filter, date_from=date_from, date_to=date_to) }}">1</a>
+                </li>
+                {% if start_page > 2 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endif %}
+            
+            {% for p in range(start_page, start_page + display_pages) %}
+                {% if p <= end_page %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('history', page=p, sort=sort_by, order=order, filter=filter_result, type=type_filter, date_from=date_from, date_to=date_to) }}">{{ p }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if start_page + display_pages < end_page %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=end_page, sort=sort_by, order=order, filter=filter_result, type=type_filter, date_from=date_from, date_to=date_to) }}">{{ end_page }}</a>
+                </li>
+            {% endif %}
+            
+            {% if page < end_page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=page+1, sort=sort_by, order=order, filter=filter_result, type=type_filter, date_from=date_from, date_to=date_to) }}">Next &raquo;</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- Modal for displaying details -->
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="detailContent"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal code (keep your existing modal code)
+        const modal = document.getElementById('detailModal');
+        const closeBtn = modal.querySelector('.close');
+    
+        closeBtn.onclick = function() {
+            modal.style.display = "none";
+        }
+    
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Reset filters functionality
+        document.getElementById('reset-filters-btn').addEventListener('click', function() {
+            window.location.href = "{{ url_for('history') }}";
+        });
+    });
+
+    // Export history functionality
+    function exportHistory() {
+        // Get current filter parameters
+        const params = new URLSearchParams(window.location.search);
+        let exportUrl = "{{ url_for('export_history') }}";
+        
+        // Add current filters to export URL
+        if (params.toString()) {
+            exportUrl += '?' + params.toString();
+        }
+        
+        // Trigger download
+        window.location.href = exportUrl;
+    }
+</script>
+{% endblock %}
