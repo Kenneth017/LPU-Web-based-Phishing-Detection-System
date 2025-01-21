@@ -310,17 +310,28 @@ function initializeViewDetailsButtons() {
 }
 
 async function viewDetails(url) {
-    console.log('viewDetails function called with URL:', url);
     try {
+        const modal = document.getElementById('detailModal');
+        if (modal) {
+            modal.style.display = 'none'; // Hide any existing modal
+        }
+
         const response = await fetch(`${CONFIG.API_ENDPOINTS.ANALYSIS_DETAILS}/${encodeURIComponent(url)}`);
-        console.log('Fetch response:', response);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const details = await response.json();
-        console.log('Fetched details:', details);
         
+        const details = await response.json();
         showDetailsModal(details);
+        
+        // Add show class after a brief delay to trigger animation
+        setTimeout(() => {
+            const modal = document.getElementById('detailModal');
+            if (modal) {
+                modal.classList.add('show');
+            }
+        }, 50);
+        
     } catch (error) {
-        console.error('Error in viewDetails:', error);
+        console.error('Error fetching details:', error);
         alert('Failed to load details. Please try again.');
     }
 }
