@@ -11,6 +11,7 @@ import json
 from ml_metrics import MLMetricsAnalyzer
 from quart import request, jsonify
 import datetime
+import time
 from datetime import datetime
 import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1004,8 +1005,7 @@ async def check_input():
         user_id = session.get('user_id')
         
         # Get current time in GMT+8
-        current_time = datetime.now(timezone)
-        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        current_time = get_singapore_time()
         
         # Log the input for debugging
         logger.info(f"Analyzing input: {input_string}")
@@ -1052,6 +1052,7 @@ async def check_input():
         conn = get_db_connection()
         c = conn.cursor()
         try:
+            # When inserting into the database, use current_time
             c.execute('''
                 INSERT INTO analysis_history 
                 (input_string, input_type, is_malicious, community_score, metadata, 
@@ -1065,7 +1066,7 @@ async def check_input():
                 json.dumps(result['metadata']),
                 json.dumps(result['vendor_analysis']),
                 user_id,
-                formatted_time,  # Use the GMT+8 timestamp
+                current_time,  # Use the GMT+8 timestamp
                 main_verdict
             ))
             conn.commit()
