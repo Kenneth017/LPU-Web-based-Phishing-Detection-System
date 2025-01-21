@@ -330,24 +330,17 @@ async def check_input():
         # Get start time for response time calculation
         start_time = time.time()
         
-        # Get input and validate
         data = await request.get_json()
         input_string = data.get('input', '').strip()
-        
-        if not input_string:
-            raise ValueError("Input string cannot be empty")
-            
         user_id = session.get('user_id')
         
-        # Set timezone to GMT+8
-        timezone = pytz.timezone('Asia/Singapore')
+        # Get current time in GMT+8
         current_time = datetime.now(timezone)
         formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
         
         # Log the input for debugging
         logger.info(f"Analyzing input: {input_string}")
         
-        # Perform the analysis
         result = await analyze_input(input_string)
         
         # Calculate response time
