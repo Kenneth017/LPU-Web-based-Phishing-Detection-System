@@ -311,11 +311,8 @@ function initializeViewDetailsButtons() {
 
 async function viewDetails(url) {
     try {
-        // Disable any existing modal
-        const existingModal = document.getElementById('detailModal');
-        if (existingModal) {
-            existingModal.style.display = 'none';
-        }
+        // Show modal with loader first
+        showDetailsModal({ loading: true });
 
         const response = await fetch(`${CONFIG.API_ENDPOINTS.ANALYSIS_DETAILS}/${encodeURIComponent(url)}`);
         if (!response.ok) {
@@ -324,14 +321,26 @@ async function viewDetails(url) {
         
         const details = await response.json();
         
-        // Wait for next frame before showing modal
-        requestAnimationFrame(() => {
-            showDetailsModal(details);
-        });
+        // Show the actual content
+        showDetailsModal(details);
         
     } catch (error) {
         console.error('Error fetching details:', error);
-        alert('Failed to load details. Please try again.');
+        
+        // Show error in modal
+        const modal = document.getElementById('detailModal');
+        if (modal) {
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <div class="modal-error">
+                        <h3>Error Loading Details</h3>
+                        <p>Failed to load analysis details. Please try again.</p>
+                        <button onclick="modal.style.display='none'" class="btn btn-secondary">Close</button>
+                    </div>
+                </div>
+            `;
+        }
     }
 }
 
