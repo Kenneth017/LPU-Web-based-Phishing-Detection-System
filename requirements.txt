@@ -9,10 +9,10 @@ werkzeug
 email-validator
 aiohttp
 numpy
-scikit-learn
+xgboost==1.7.3
+scikit-learn==1.6.1
 pandas
 plotly
-xgboost
 tqdm
 nltk
 joblib
