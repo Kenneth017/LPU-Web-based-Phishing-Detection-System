@@ -1,5 +1,5 @@
-Flask
 quart
+uvicorn[standard]
 python-dotenv
 beautifulsoup4
 extract-msg
@@ -7,8 +7,6 @@ itsdangerous
 werkzeug
 email-validator
 aiohttp
-hypercorn[uvloop]
-uvicorn
 numpy
 scikit-learn
 pandas
@@ -24,4 +22,3 @@ bs4
 plotly-express
 email-validator
 python-multipart
-hypercorn
