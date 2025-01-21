@@ -1,4 +1,4 @@
-from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash. request
+from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash, request
 import os
 import sqlite3
 import csv
