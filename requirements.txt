@@ -15,3 +15,13 @@ scikit-learn
 pandas
 plotly
 xgboost
+tqdm
+nltk
+joblib
+scipy
+requests
+aiosqlite
+bs4
+plotly-express
+email-validator
+python-multipart
