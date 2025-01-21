@@ -702,7 +702,13 @@ class EmailPhishingDetector:
         """Load a trained model and vectorizer"""
         try:
             print(f"Loading model from {model_dir}...")
-            self.model = joblib.load(os.path.join(model_dir, 'phishing_model.joblib'))
+            model = joblib.load(os.path.join(model_dir, 'phishing_model.joblib'))
+            
+            # Add this check for XGBoost models
+            if isinstance(model, XGBClassifier):
+                model.use_label_encoder = False
+                
+            self.model = model
             self.tfidf = joblib.load(os.path.join(model_dir, 'tfidf_vectorizer.joblib'))
             self.feature_names = joblib.load(os.path.join(model_dir, 'feature_names.joblib'))
             self.trained = True
