@@ -27,3 +27,4 @@ hypercorn
 flask-socketio
 flask-cors
 eventlet
+websockets
