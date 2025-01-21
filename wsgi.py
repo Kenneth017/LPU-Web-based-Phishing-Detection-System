@@ -1,10 +1,8 @@
 from app import app as application
-from app import init_db, ensure_db_directory, migrate_database
+from utils import setup_logger
 
-# Initialize database on startup
-ensure_db_directory()
-init_db()
-migrate_database()
+# Set up logging for the application
+logger = setup_logger(__name__)
 
 if __name__ == "__main__":
     application.run()
