@@ -3,11 +3,7 @@ services:
     name: phishing-detection
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:application --workers 4 --worker-class uvicorn.workers.UvicornWorker
+    startCommand: gunicorn wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
-      - key: VIRUSTOTAL_API_KEY
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
