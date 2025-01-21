@@ -345,6 +345,18 @@ function showDetailsModal(details) {
         document.body.appendChild(modal);
     }
 
+    // Show loading state first
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="modal-loader">
+                <div class="spinner"></div>
+                <p>Loading analysis details...</p>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'block';
+
     // Prepare the modal content
     const modalContent = `
         <div class="modal-content">
@@ -397,8 +409,10 @@ function showDetailsModal(details) {
         </div>
     `;
 
-    // Set the content
-    modal.innerHTML = modalContent;
+    // Set the content after a short delay
+    setTimeout(() => {
+        modal.innerHTML = modalContent;
+    }, 300);
 
     // Show the modal after content is set
     requestAnimationFrame(() => {
