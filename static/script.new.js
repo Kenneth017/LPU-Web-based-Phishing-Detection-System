@@ -326,6 +326,7 @@ async function viewDetails(url) {
 }
 
 function showDetailsModal(details) {
+    // Create or get modal container
     let modal = document.getElementById('detailModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -334,61 +335,87 @@ function showDetailsModal(details) {
         document.body.appendChild(modal);
     }
 
-    const vendorAnalysisHtml = details.vendor_analysis && Array.isArray(details.vendor_analysis) && details.vendor_analysis.length > 0
-        ? `
-            <table class="vendor-table">
-                <thead><tr><th>Vendor</th><th>Verdict</th></tr></thead>
-                <tbody>
-                    ${details.vendor_analysis.map(vendor => `
-                        <tr>
-                            <td>${vendor.name}</td>
-                            <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `
-        : '<p>No vendor analysis available</p>';
-
+    // Prepare the content before showing the modal
     const modalContent = `
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2>Analysis Details</h2>
-            <p><strong>URL:</strong> ${details.input_string || 'N/A'}</p>
-            <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
-            <p><strong>Status:</strong> <span class="status-badge ${details.main_verdict || 'unknown'}">
-                ${(details.main_verdict || 'Unknown').charAt(0).toUpperCase() + (details.main_verdict || 'unknown').slice(1)}
-            </span></p>
-            <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
             
-            <div class="vendor-analysis">
-                <h3>Vendor Analysis</h3>
-                ${vendorAnalysisHtml}
+            <div class="details-grid">
+                <div class="detail-item">
+                    <strong>URL:</strong> 
+                    <span>${details.input_string || details.url || 'N/A'}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong>Analysis Date:</strong> 
+                    <span>${details.analysis_date || 'N/A'}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong>Status:</strong> 
+                    <span class="status-badge ${details.main_verdict || 'unknown'}">
+                        ${(details.main_verdict || 'Unknown').toUpperCase()}
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong>Community Score:</strong> 
+                    <span>${details.community_score || 'N/A'}</span>
+                </div>
             </div>
-            
+
             ${details.metadata ? `
-                <div class="metadata">
+                <div class="metadata-section">
                     <h3>Additional Information</h3>
-                    <p><strong>Final URL:</strong> ${details.metadata.final_url || 'N/A'}</p>
-                    <p><strong>Serving IP:</strong> ${details.metadata.serving_ip || 'N/A'}</p>
+                    <div class="metadata-grid">
+                        ${Object.entries(details.metadata).map(([key, value]) => `
+                            <div class="metadata-item">
+                                <strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong>
+                                <span>${value || 'N/A'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             ` : ''}
+
+            <div class="vendor-analysis">
+                <h3>Vendor Analysis</h3>
+                <div class="vendor-table-container">
+                    <table class="vendor-table">
+                        <thead>
+                            <tr>
+                                <th>Vendor</th>
+                                <th>Verdict</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${details.vendor_analysis.map(vendor => `
+                                <tr>
+                                    <td>${vendor.name}</td>
+                                    <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     `;
 
+    // Set the content and show the modal
     modal.innerHTML = modalContent;
     modal.style.display = 'block';
 
+    // Add event listeners
     const closeBtn = modal.querySelector('.close');
-    closeBtn.onclick = function() {
-        modal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
+    closeBtn.onclick = () => modal.style.display = 'none';
+    
+    window.onclick = (event) => {
+        if (event.target === modal) {
             modal.style.display = 'none';
         }
-    }
+    };
 }
 
 function displayResult(data) {
