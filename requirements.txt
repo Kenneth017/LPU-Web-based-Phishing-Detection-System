@@ -1,0 +1,5 @@
+gunicorn-23.0.0
+quart
+aiohttp
+python-dotenv
+email-validator==1.1.3

@@ -1,0 +1,32 @@
+/* base/_variables.css */
+:root {
+    /* Colors */
+    --primary-bg: #0A0E29;
+    --secondary-bg: #141A35;
+    --text-color: #FFFFFF;
+    --text-color-secondary: #CCCCCC;
+    --accent-color: #50E3C2;
+    --danger-color: #FF4B4B;
+    --success-color: #13CE66;
+    --warning-color: #FFA500;
+    
+    /* Shadows */
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    
+    /* Spacing */
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    
+    /* Border Radius */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 16px;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #50E3C2 0%, #4CA9FF 100%);
+    --gradient-dark: linear-gradient(135deg, #0A0E29 0%, #1A1F35 100%);
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+}
