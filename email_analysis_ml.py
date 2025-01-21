@@ -682,6 +682,23 @@ class EmailPhishingDetector:
         
         return attachments
 
+    def retrain_model(self, dataset_path):
+        """Retrain the model with current XGBoost version"""
+        try:
+            # Load and preprocess the dataset
+            df = self.load_dataset(dataset_path)
+            
+            # Train the model
+            results = self.train(df)
+            
+            # Save the newly trained model
+            self.save_model()
+            
+            return results
+        except Exception as e:
+            print(f"Error retraining model: {str(e)}")
+            raise
+
     def save_model(self, model_dir='models'):
         """Save the trained model and vectorizer"""
         if not self.trained:
