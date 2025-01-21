@@ -6,11 +6,10 @@ services:
       apt-get update && apt-get install -y libgomp1
       pip install -r requirements.txt
       python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger')"
-    startCommand: |
-      export PYTHONPATH=$PYTHONPATH:$(pwd)
-      uvicorn app:app --host 0.0.0.0 --port $PORT --workers 4 --log-level info --timeout-keep-alive 75
+      chmod +x start.sh
+    startCommand: ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
-      - key: WEB_CONCURRENCY
-        value: "4"
+      - key: PORT
+        value: 10000
