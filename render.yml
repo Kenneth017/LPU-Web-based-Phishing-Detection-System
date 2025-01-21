@@ -2,7 +2,9 @@ services:
   - type: web
     name: phishing-detection
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      apt-get update && apt-get install -y libgomp1
+      pip install -r requirements.txt
     startCommand: gunicorn wsgi:application
     envVars:
       - key: PYTHON_VERSION
