@@ -37,7 +37,6 @@ from quart import request, flash, redirect, url_for, render_template
 from dotenv import load_dotenv
 load_dotenv()
 
-app = Quart(__name__)
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
 
