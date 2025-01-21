@@ -520,7 +520,9 @@ async function analyzeInput() {
         });
 
         if (!response.ok) throw new Error('Analysis failed');
-        window.location.href = '/result';
+        
+        const result = await response.json();
+        displayResult(result);
     } catch (error) {
         handleError(error, 'analyzeInput');
     } finally {
