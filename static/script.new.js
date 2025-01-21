@@ -311,24 +311,23 @@ function initializeViewDetailsButtons() {
 
 async function viewDetails(url) {
     try {
-        const modal = document.getElementById('detailModal');
-        if (modal) {
-            modal.style.display = 'none'; // Hide any existing modal
+        // Disable any existing modal
+        const existingModal = document.getElementById('detailModal');
+        if (existingModal) {
+            existingModal.style.display = 'none';
         }
 
         const response = await fetch(`${CONFIG.API_ENDPOINTS.ANALYSIS_DETAILS}/${encodeURIComponent(url)}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const details = await response.json();
-        showDetailsModal(details);
         
-        // Add show class after a brief delay to trigger animation
-        setTimeout(() => {
-            const modal = document.getElementById('detailModal');
-            if (modal) {
-                modal.classList.add('show');
-            }
-        }, 50);
+        // Wait for next frame before showing modal
+        requestAnimationFrame(() => {
+            showDetailsModal(details);
+        });
         
     } catch (error) {
         console.error('Error fetching details:', error);
@@ -342,91 +341,89 @@ function showDetailsModal(details) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'detailModal';
-        modal.className = 'modal';
+        modal.className = 'modal modern-modal';
         document.body.appendChild(modal);
     }
 
-    // Prepare the content before showing the modal
+    // Prepare the modal content
     const modalContent = `
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2>Analysis Details</h2>
             
-            <div class="details-grid">
-                <div class="detail-item">
-                    <strong>URL:</strong> 
-                    <span>${details.input_string || details.url || 'N/A'}</span>
-                </div>
-                
-                <div class="detail-item">
-                    <strong>Analysis Date:</strong> 
-                    <span>${details.analysis_date || 'N/A'}</span>
-                </div>
-                
-                <div class="detail-item">
-                    <strong>Status:</strong> 
-                    <span class="status-badge ${details.main_verdict || 'unknown'}">
+            <div class="details-section">
+                <p><strong>URL:</strong> ${details.input_string || details.url || details.original_input || 'N/A'}</p>
+                <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
+                <p><strong>Status:</strong> 
+                    <span class="status-badge ${details.main_verdict?.toLowerCase() || 'unknown'}">
                         ${(details.main_verdict || 'Unknown').toUpperCase()}
                     </span>
-                </div>
-                
-                <div class="detail-item">
-                    <strong>Community Score:</strong> 
-                    <span>${details.community_score || 'N/A'}</span>
-                </div>
+                </p>
+                <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
             </div>
 
             ${details.metadata ? `
                 <div class="metadata-section">
                     <h3>Additional Information</h3>
-                    <div class="metadata-grid">
-                        ${Object.entries(details.metadata).map(([key, value]) => `
-                            <div class="metadata-item">
-                                <strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong>
-                                <span>${value || 'N/A'}</span>
-                            </div>
+                    ${Object.entries(details.metadata)
+                        .filter(([key, value]) => value !== null && value !== undefined)
+                        .map(([key, value]) => `
+                            <p><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</p>
                         `).join('')}
-                    </div>
                 </div>
             ` : ''}
 
             <div class="vendor-analysis">
                 <h3>Vendor Analysis</h3>
-                <div class="vendor-table-container">
-                    <table class="vendor-table">
-                        <thead>
-                            <tr>
-                                <th>Vendor</th>
-                                <th>Verdict</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${details.vendor_analysis.map(vendor => `
+                <table class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${details.vendor_analysis
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(vendor => `
                                 <tr>
                                     <td>${vendor.name}</td>
                                     <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
                                 </tr>
                             `).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
     `;
 
-    // Set the content and show the modal
+    // Set the content
     modal.innerHTML = modalContent;
-    modal.style.display = 'block';
+
+    // Show the modal after content is set
+    requestAnimationFrame(() => {
+        modal.style.display = 'block';
+    });
 
     // Add event listeners
     const closeBtn = modal.querySelector('.close');
-    closeBtn.onclick = () => modal.style.display = 'none';
-    
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+    };
+
     window.onclick = (event) => {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
     };
+}
+
+function cleanupModal() {
+    const modal = document.getElementById('detailModal');
+    if (modal) {
+        modal.remove();
+    }
+    window.onclick = null;
 }
 
 function displayResult(data) {
