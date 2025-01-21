@@ -1,0 +1,273 @@
+/* pages/_history.css */
+.history-container {
+    padding: 20px;
+    background-color: var(--secondary-bg);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filters label {
+    color: var(--text-color-secondary);
+}
+
+.filters select,
+.filters input[type="date"] {
+    padding: 5px 10px;
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--text-color-secondary);
+    border-radius: 4px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+    table-layout: fixed;
+}
+
+.history-table thead tr {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.history-table th {
+    color: var(--accent-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.history-table tbody tr {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.history-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+
+/* Input cell styling */
+.input-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+}
+
+.input-text {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-color);
+}
+
+.copy-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    padding: 5px;
+    font-size: 1rem;
+    transition: color 0.3s ease;
+}
+
+.copy-btn:hover {
+    color: var(--text-color);
+}
+
+/* Status badge styling */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+/* Action buttons styling */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    padding: 5px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.3s ease;
+}
+
+.btn-icon:hover {
+    color: var(--text-color);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.page-item {
+    margin: 0;
+}
+
+.page-link {
+    padding: 8px 12px;
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.page-item.active .page-link {
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+}
+
+.page-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.filter-actions .btn {
+    flex: 1;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-actions .btn-primary {
+    background: var(--gradient-primary);
+    color: var(--primary-bg);
+}
+
+.filter-actions .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.filter-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+    .history-table .input-column {
+        width: 30%;
+    }
+    .history-table .actions-column {
+        width: 25%;
+    }
+}
+
+@media (max-width: 992px) {
+    .history-table .input-column {
+        width: 25%;
+    }
+    .history-table .type-column,
+    .history-table .result-column {
+        width: 12%;
+    }
+    .history-table .date-column {
+        width: 18%;
+    }
+    .history-table .actions-column {
+        width: 33%;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+    }
+    .filter-group {
+        flex-wrap: wrap;
+    }
+    .history-table {
+        font-size: 0.875rem;
+    }
+    .btn-icon {
+        font-size: 0.7rem;
+    }
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .filter-actions .btn {
+        width: 100%;
+    }
+}
+@media (max-width: 576px) {
+    .history-table .input-column {
+        width: 40%;
+    }
+    .history-table .type-column,
+    .history-table .result-column,
+    .history-table .date-column {
+        width: 20%;
+    }
+    .history-table .actions-column {
+        width: 100%;
+    }
+    .action-buttons {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

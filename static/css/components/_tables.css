@@ -1,0 +1,79 @@
+/* components/_tables.css */
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+    background-color: var(--secondary-bg);
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+}
+
+.table th,
+.table td {
+    padding: 1rem;
+    vertical-align: top;
+}
+
+.table thead th {
+    vertical-align: bottom;
+    color: var(--accent-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.table-striped tbody tr {
+    background: var(--glass-bg);
+    backdrop-filter: blur(5px);
+    transition: transform 0.3s ease;
+}
+
+.table-striped tbody tr:hover {
+    transform: scale(1.01);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    table-layout: fixed; /* This ensures fixed column widths */
+}
+
+.history-table th,
+.history-table td {
+    padding: 0.75rem;
+    text-align: left;
+    background-color: var(--glass-bg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Define specific column widths */
+.history-table .url-column {
+    width: 50%; /* URL column takes half the width */
+}
+
+.history-table .result-column {
+    width: 20%; /* Result column takes 20% */
+}
+
+.history-table .date-column {
+    width: 30%; /* Date column takes 30% */
+}
+
+/* Add horizontal scroll for small screens */
+.table-container {
+    overflow-x: auto;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+}
+
+/* Ensure the text doesn't overflow */
+.text-truncate {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Phishing Detection Tool{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <h1 class="main-title">Detect Phishing Attempts Instantly</h1>
+    <p class="subtitle">Enter a URL, domain, IP address, or file hash to analyze.</p>
+    
+    <form id="analysis-form" class="analysis-form" onsubmit="return false;">
+        <div class="input-group">
+            <input type="text" 
+                   id="url-input"
+                   name="input" 
+                   required 
+                   placeholder="Enter URL, Domain, IP address, or File Hash"
+                   class="analysis-input">
+            <div id="input-type-indicator" class="input-type-indicator"></div>
+        </div>
+        <div class="btn-analyze-container">
+            <button type="button" onclick="analyzeInput()" class="btn btn-primary btn-analyze">Analyze</button>
+        </div>
+    </form>
+    
+    <div id="metadata" class="metadata-container"></div>
+
+    <div id="result" class="hidden">
+        <h2>Result:</h2>
+        <p id="result-text"></p>
+        <p id="community-score"></p>
+        <p id="final-url"></p>
+        <p id="serving-ip"></p>
+        <div id="vendor-analysis">
+            <div id="phishing-vendors-container" class="vendor-container">
+                <h3>Phishing Vendors:</h3>
+                <table id="phishing-vendors" class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="malicious-vendors-container" class="vendor-container">
+                <h3>Malicious Vendors:</h3>
+                <table id="malicious-vendors" class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="suspicious-vendors-container" class="vendor-container">
+                <h3>Suspicious Vendors:</h3>
+                <table id="suspicious-vendors" class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="clean-vendors-container" class="vendor-container">
+                <h3>Clean Vendors:</h3>
+                <table id="clean-vendors" class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        <button onclick="showFeedbackForm()" class="btn btn-secondary">Report Incorrect Result</button>
+    </div>
+    
+    <div id="feedback-form" class="hidden feedback-container">
+        <h3>Submit Feedback</h3>
+        <textarea id="feedback-notes" placeholder="Please provide details about why you think this result is incorrect"></textarea>
+        <div class="feedback-actions">
+            <button onclick="submitFeedback(true)" class="btn btn-danger">Report as Phishing</button>
+            <button onclick="submitFeedback(false)" class="btn btn-success">Report as Safe</button>
+            <button onclick="closeFeedbackForm()" class="btn btn-secondary">Cancel</button>
+        </div>
+    </div>
+
+    <div id="real-time-check">
+        <h2>Real-Time URL Checking</h2>
+        <p>As you browse, URLs will be automatically checked here:</p>
+        <div id="real-time-result"></div>
+    </div>
+
+    {% if history %}
+    <div class="recent-checks">
+        <h2>Recent Checks</h2>
+        <div class="table-responsive">
+            <table class="wide-table">
+                <thead>
+                    <tr>
+                        <th class="url-column">URL</th>
+                        <th>Result</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for input_string, main_verdict, analysis_date in history %}
+                    <tr>
+                        <td class="url-column">{{ input_string }}</td>
+                        <td>
+                            <span class="status-badge {{ main_verdict }}">
+                                {{ main_verdict|capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ analysis_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('history') }}" class="btn-secondary">View Full History</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script src="{{ url_for('static', filename='script.new.js') }}"></script>
+<script>
+    var socket = io();
+    
+    socket.on('connect', function() {
+        console.log('WebSocket connected!');
+    });
+
+    socket.on('url_result', function(result) {
+        displayRealTimeResult(result);
+    });
+
+    function displayRealTimeResult(result) {
+        var resultDiv = document.getElementById('real-time-result');
+        var content = `
+            <p>URL: ${result.input_string}</p>
+            <p>Verdict: ${result.main_verdict}</p>
+            <p>Is Malicious: ${result.is_malicious}</p>
+        `;
+        resultDiv.innerHTML = content;
+    }
+
+    // Function to simulate real-time URL checking (for testing)
+    function checkRandomUrl() {
+        var urls = [
+            'https://www.google.com',
+            'https://www.example.com',
+            'https://phishing-site.com',
+            'https://malware-site.com'
+        ];
+        var randomUrl = urls[Math.floor(Math.random() * urls.length)];
+        socket.emit('check_url', {url: randomUrl});
+    }
+
+    // Check a random URL every 10 seconds (for testing)
+    setInterval(checkRandomUrl, 10000);
+</script>
+{% endblock %}

@@ -1,0 +1,270 @@
+/* pages/_result.css */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+#result {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-top: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#result h1 {
+    color: var(--accent-color);
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+#result h2 {
+    color: var(--text-color);
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    word-break: break-all;
+}
+
+#result-text {
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+#result-text.danger {
+    background: rgba(255, 75, 75, 0.1);
+    border: 1px solid rgba(255, 75, 75, 0.2);
+}
+
+#result-text.success {
+    background: rgba(19, 206, 102, 0.1);
+    border: 1px solid rgba(19, 206, 102, 0.2);
+}
+
+#result-text h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#result-text p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.probability {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.analysis-details, .vendor-analysis {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.analysis-details h3, .vendor-analysis h3 {
+    color: var(--accent-color);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.history-table th, .history-table td {
+    padding: 12px;
+    text-align: left;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.history-table th {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.history-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.vendor-analysis {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.vendor-analysis h3 {
+    color: var(--accent-color);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.vendor-analysis h4 {
+    color: var(--text-color-secondary);
+    font-size: 1.2rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vendor-analysis table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 1rem;
+}
+
+.vendor-analysis table th,
+.vendor-analysis table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vendor-analysis table th {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--accent-color);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Updated column widths and alignment */
+.vendor-analysis table th:first-child,
+.vendor-analysis table td:first-child {
+    width: 70%;
+}
+
+.vendor-analysis table th:last-child,
+.vendor-analysis table td:last-child {
+    width: 30%;
+    text-align: left; /* Changed from right to left */
+    padding-right: 2rem;
+}
+
+/* Verdict colors */
+.vendor-analysis table td.phishing,
+.vendor-analysis table td.malicious {
+    color: var(--danger-color);
+}
+
+.vendor-analysis table td.suspicious {
+    color: var(--warning-color);
+}
+
+.vendor-analysis table td.clean {
+    color: var(--success-color);
+}
+
+#phishing-vendors-container,
+#malicious-vendors-container,
+#suspicious-vendors-container,
+#clean-vendors-container {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+/* Add alternating row backgrounds */
+.vendor-analysis table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Add hover effect */
+.vendor-analysis table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Empty state handling */
+.vendor-analysis table:empty,
+.vendor-analysis div:empty {
+    display: none;
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between; /* Changed from center to space-between */
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.actions .btn {
+    flex: 1;
+    height: 45px; /* Fixed height */
+    line-height: 45px; /* Match height for vertical centering */
+    font-size: 1rem;
+    text-decoration: none;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    padding: 0; /* Remove padding */
+    display: block; /* Change to block */
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.actions .btn-primary {
+    background: var(--gradient-primary);
+    color: var(--primary-bg);
+}
+
+.actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(80, 227, 194, 0.3);
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    #result {
+        padding: 1.5rem;
+    }
+
+    #result h1 {
+        font-size: 2rem;
+    }
+
+    #result h2 {
+        font-size: 1.5rem;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .actions .btn {
+        width: 100%;
+    }
+}
