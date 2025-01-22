@@ -240,9 +240,10 @@
     }
 }
 
-/* Add smooth transitions */
 .modal-content {
-    transition: opacity 0.3s ease;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
 }
 
 .modal-content.loading {
@@ -276,4 +277,25 @@
 
 .modal-close {
     margin-top: 20px;
+}
+
+.metadata-value {
+    white-space: pre-wrap;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.metadata-item {
+    margin-bottom: 15px;
+}
+
+.modal.show .modal-content {
+    opacity: 1;
+    transform: translateY(0);
 }
