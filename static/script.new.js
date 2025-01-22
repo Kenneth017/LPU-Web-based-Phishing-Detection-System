@@ -311,14 +311,28 @@ function initializeViewDetailsButtons() {
 
 async function viewDetails(url) {
     try {
-        const modal = document.getElementById('detailModal');
-        if (modal) {
-            modal.classList.remove('show');
+        // Get or create modal once
+        let modal = document.getElementById('detailModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'detailModal';
+            modal.className = 'modal modern-modal';
+            document.body.appendChild(modal);
         }
 
-        // Show loading state
-        showDetailsModal({ loading: true });
+        // Show loading state immediately
+        modal.innerHTML = `
+            <div class="modal-content loading">
+                <span class="close">&times;</span>
+                <div class="modal-loader">
+                    <div class="spinner"></div>
+                    <p>Loading analysis details...</p>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'block';
 
+        // Fetch data
         const response = await fetch(`${CONFIG.API_ENDPOINTS.ANALYSIS_DETAILS}/${encodeURIComponent(url)}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -326,22 +340,26 @@ async function viewDetails(url) {
         
         const details = await response.json();
         
-        // Show content with animation
+        // Update content only once data is ready
         requestAnimationFrame(() => {
-            showDetailsModal(details);
-            setTimeout(() => {
-                const modal = document.getElementById('detailModal');
-                if (modal) {
-                    modal.classList.add('show');
-                }
-            }, 50);
+            showDetailsModal(details, modal);
         });
         
     } catch (error) {
         console.error('Error fetching details:', error);
-        showDetailsModal({ 
-            error: error.message || 'Failed to load analysis details. Please try again.' 
-        });
+        if (modal) {
+            modal.innerHTML = `
+                <div class="modal-content error">
+                    <span class="close">&times;</span>
+                    <div class="modal-error">
+                        <h3>Error Loading Details</h3>
+                        <p>${error.message || 'Failed to load analysis details. Please try again.'}</p>
+                        <button class="btn btn-secondary modal-close">Close</button>
+                    </div>
+                </div>
+            `;
+            setupModalCloseHandlers(modal);
+        }
     }
 }
 
@@ -483,6 +501,21 @@ function showDetailsModal(details) {
             }
         };
     });
+}
+
+function setupModalCloseHandlers(modal) {
+    const closeButtons = modal.querySelectorAll('.close, .modal-close');
+    closeButtons.forEach(button => {
+        button.onclick = () => {
+            modal.style.display = 'none';
+        };
+    });
+
+    window.onclick = (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
 }
 
 function cleanupModal() {
