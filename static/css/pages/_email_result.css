@@ -277,27 +277,43 @@ pre {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Styling for the summary section */
-.result-card .summary,
-.result-card .key-findings,
-.result-card .recommendations {
-    color: var(--text-color, #ffffff);  /* Use your text color variable or default to white */
+/* New styles for fixing text color in summary, key findings, and recommendations */
+.result-card .result-content {
+    color: var(--text-color, #ffffff);  /* Default text color */
 }
 
-/* Ensure list items in key findings and recommendations are visible */
+.result-card .result-content h3 {
+    color: var(--heading-color, #ffffff);  /* Heading color */
+}
+
+.result-card .result-content p,
 .result-card .key-findings li,
 .result-card .recommendations li {
-    color: var(--text-color, #ffffff);  /* Use your text color variable or default to white */
+    color: var(--text-color, #ffffff);  /* Default text color for paragraphs and list items */
 }
 
-/* Style for potential red flags or warnings */
-.result-card .key-findings li[data-risk="high"],
-.result-card .recommendations li[data-risk="high"] {
-    color: #FF4B4B;  /* Use your warning color */
+.result-card .key-findings li strong,
+.result-card .recommendations li strong {
+    color: var(--accent-color, #50E3C2);  /* Accent color for strong tags */
 }
 
-/* Style for good signs or low-risk items */
-.result-card .key-findings li[data-risk="low"],
-.result-card .recommendations li[data-risk="low"] {
-    color: #50E3C2;  /* Use your safe color */
+/* Color coding for key findings */
+.result-card .key-findings li:contains("(Good sign)") {
+    color: #50E3C2;  /* Green color for good signs */
+}
+
+.result-card .key-findings li:contains("(Potential red flag)"),
+.result-card .key-findings li:contains("(Exercise caution)") {
+    color: #FF4B4B;  /* Red color for potential threats */
+}
+
+/* Ensure links in recommendations are visible */
+.result-card .recommendations li a {
+    color: var(--link-color, #4A90E2);  /* Link color */
+    text-decoration: underline;
+}
+
+/* Hover effect for links */
+.result-card .recommendations li a:hover {
+    color: var(--link-hover-color, #2A6496);  /* Link hover color */
 }
