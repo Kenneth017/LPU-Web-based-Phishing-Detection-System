@@ -388,33 +388,34 @@ function formatObjectData(data) {
     return String(data);
 }
 
-function showDetailsModal(details) {
-    // Create modal if it doesn't exist
-    let modal = document.getElementById('detailModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'detailModal';
-        modal.className = 'modal modern-modal';
-        document.body.appendChild(modal);
+function showDetailsModal(details, modal) {
+    if (!modal) return;
+
+    function formatObjectData(data) {
+        if (Array.isArray(data)) {
+            return data.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                    if (item.name && item.value) {
+                        return `${item.name}: ${item.value}`;
+                    } else if (item.url && item.text) {
+                        return `${item.text} (${item.url})`;
+                    } else {
+                        return Object.entries(item)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(', ');
+                    }
+                }
+                return String(item);
+            }).join('\n');
+        } else if (typeof data === 'object' && data !== null) {
+            return Object.entries(data)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join('\n');
+        }
+        return String(data);
     }
 
-    // Show loading state first
-    if (details.loading) {
-        modal.innerHTML = `
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <div class="modal-loader">
-                    <div class="spinner"></div>
-                    <p>Loading analysis details...</p>
-                </div>
-            </div>
-        `;
-        modal.style.display = 'block';
-        return;
-    }
-
-    // Format metadata for display
-    const formatMetadata = (metadata) => {
+    function formatMetadata(metadata) {
         if (!metadata) return {};
         const formatted = {};
         Object.entries(metadata).forEach(([key, value]) => {
@@ -427,11 +428,10 @@ function showDetailsModal(details) {
             }
         });
         return formatted;
-    };
+    }
 
     const formattedMetadata = formatMetadata(details.metadata);
 
-    // Prepare the content
     const modalContent = `
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -483,24 +483,30 @@ function showDetailsModal(details) {
         </div>
     `;
 
-    // Use requestAnimationFrame to smooth out the transition
-    requestAnimationFrame(() => {
-        modal.innerHTML = modalContent;
-        
-        // Add event listeners
-        const closeButtons = modal.querySelectorAll('.close, .modal-close');
-        closeButtons.forEach(button => {
-            button.onclick = () => {
-                modal.style.display = 'none';
-            };
-        });
+    modal.innerHTML = modalContent;
 
-        window.onclick = (event) => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
+    // Setup close handlers
+    const closeButtons = modal.querySelectorAll('.close, .modal-close');
+    closeButtons.forEach(button => {
+        button.onclick = () => {
+            modal.style.display = 'none';
         };
     });
+
+    window.onclick = (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
+
+    // Ensure the modal is visible
+    modal.style.display = 'block';
+
+    // Trigger reflow to ensure animation plays
+    void modal.offsetWidth;
+
+    // Add class to start animation
+    modal.classList.add('show');
 }
 
 function setupModalCloseHandlers(modal) {
