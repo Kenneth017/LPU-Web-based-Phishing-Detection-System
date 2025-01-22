@@ -412,24 +412,12 @@ function showDetailsModal(details, modal) {
             // Special handling for attachment objects
             if (data.content_type && data.filename && data.hash) {
                 const hashDetails = typeof data.hash === 'object' ? 
-                    Object.entries(data.hash)
+                    `{${Object.entries(data.hash)
                         .map(([key, value]) => `${key}: ${value}`)
-                        .join(', ') : 
+                        .join(', ')}}` : 
                     data.hash;
 
-                return `
-                    Content Type: ${data.content_type}
-                    Filename: ${data.filename}
-                    Size: ${data.size} bytes
-                    Hash Details:
-                        ${hashDetails}
-                `.trim();
-            }
-            // Handle hash object specifically
-            if (Object.keys(data).some(key => ['md5', 'sha1', 'sha256'].includes(key))) {
-                return Object.entries(data)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n    ');
+                return `Content Type: ${data.content_type}, Filename: ${data.filename}, Hash: ${hashDetails}, Size: ${data.size}`;
             }
             // Default object handling
             return Object.entries(data)
@@ -457,24 +445,6 @@ function showDetailsModal(details, modal) {
 
     const formattedMetadata = formatMetadata(details.metadata);
 
-    const formatAttachments = (attachments) => {
-        if (!attachments || !Array.isArray(attachments)) return 'No attachments';
-        return attachments.map(attachment => {
-            const hashDetails = attachment.hash ? 
-                Object.entries(attachment.hash)
-                    .map(([key, value]) => `        ${key}: ${value}`)
-                    .join('\n') :
-                'No hash information';
-
-            return `
-    • ${attachment.filename}
-      Type: ${attachment.content_type}
-      Size: ${attachment.size} bytes
-      Hash Information:
-${hashDetails}`;
-        }).join('\n\n');
-    };
-
     const modalContent = `
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -494,22 +464,12 @@ ${hashDetails}`;
             <div class="metadata-section">
                 <h3>Additional Information</h3>
                 ${Object.entries(formattedMetadata)
-                    .map(([key, value]) => {
-                        if (key.toLowerCase() === 'attachments') {
-                            return `
-                                <div class="metadata-item">
-                                    <strong>ATTACHMENTS:</strong>
-                                    <pre class="metadata-value">${formatAttachments(value)}</pre>
-                                </div>
-                            `;
-                        }
-                        return `
-                            <div class="metadata-item">
-                                <strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong>
-                                <pre class="metadata-value">${value}</pre>
-                            </div>
-                        `;
-                    }).join('')}
+                    .map(([key, value]) => `
+                        <div class="metadata-item">
+                            <strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong>
+                            <pre class="metadata-value">${value}</pre>
+                        </div>
+                    `).join('')}
             </div>
 
             <div class="vendor-analysis">
