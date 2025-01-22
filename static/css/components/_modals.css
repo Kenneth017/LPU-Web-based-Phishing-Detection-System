@@ -184,17 +184,20 @@
 .metadata-value {
     white-space: pre-wrap;
     background: rgba(0, 0, 0, 0.1);
-    padding: 8px;
+    padding: 12px;
     border-radius: 4px;
     font-family: monospace;
     font-size: 12px;
     margin-top: 4px;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
+    line-height: 1.5;
 }
 
-.metadata-item {
-    margin-bottom: 15px;
+.metadata-item strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--accent-color);
 }
 
 /* Scrollbar Styles */
