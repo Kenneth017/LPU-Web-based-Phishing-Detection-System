@@ -276,3 +276,28 @@ pre {
 .attachment-table tr:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* Styling for the summary section */
+.result-card .summary,
+.result-card .key-findings,
+.result-card .recommendations {
+    color: var(--text-color, #ffffff);  /* Use your text color variable or default to white */
+}
+
+/* Ensure list items in key findings and recommendations are visible */
+.result-card .key-findings li,
+.result-card .recommendations li {
+    color: var(--text-color, #ffffff);  /* Use your text color variable or default to white */
+}
+
+/* Style for potential red flags or warnings */
+.result-card .key-findings li[data-risk="high"],
+.result-card .recommendations li[data-risk="high"] {
+    color: #FF4B4B;  /* Use your warning color */
+}
+
+/* Style for good signs or low-risk items */
+.result-card .key-findings li[data-risk="low"],
+.result-card .recommendations li[data-risk="low"] {
+    color: #50E3C2;  /* Use your safe color */
+}
