@@ -365,24 +365,17 @@ async function viewDetails(url) {
 
 function formatObjectData(data) {
     if (Array.isArray(data)) {
-        return data.map(item => {
-            if (typeof item === 'object' && item !== null) {
-                // Handle specific object types differently
-                if (item.name && item.value) {
-                    return `${item.name}: ${item.value}`;
-                } else if (item.url && item.text) {
-                    return `${item.text} (${item.url})`;
-                } else {
-                    return Object.entries(item)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(', ');
-                }
-            }
-            return String(item);
-        }).join('\n');
+        return data.map(item => formatObjectData(item)).join('\n');
     } else if (typeof data === 'object' && data !== null) {
+        if (data.content_type && data.filename && data.hash && data.size) {
+            // This is likely an attachment object
+            const hashString = Object.entries(data.hash)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            return `Content Type: ${data.content_type}, Filename: ${data.filename}, Hash: {${hashString}}, Size: ${data.size}`;
+        }
         return Object.entries(data)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => `${key}: ${formatObjectData(value)}`)
             .join('\n');
     }
     return String(data);
@@ -420,11 +413,7 @@ function showDetailsModal(details, modal) {
         const formatted = {};
         Object.entries(metadata).forEach(([key, value]) => {
             if (value !== null && value !== undefined) {
-                if (typeof value === 'object') {
-                    formatted[key] = formatObjectData(value);
-                } else {
-                    formatted[key] = value;
-                }
+                formatted[key] = formatObjectData(value);
             }
         });
         return formatted;
