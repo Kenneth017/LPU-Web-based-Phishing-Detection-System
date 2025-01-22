@@ -311,7 +311,12 @@ function initializeViewDetailsButtons() {
 
 async function viewDetails(url) {
     try {
-        // Show modal with loader first
+        const modal = document.getElementById('detailModal');
+        if (modal) {
+            modal.classList.remove('show');
+        }
+
+        // Show loading state
         showDetailsModal({ loading: true });
 
         const response = await fetch(`${CONFIG.API_ENDPOINTS.ANALYSIS_DETAILS}/${encodeURIComponent(url)}`);
@@ -321,18 +326,52 @@ async function viewDetails(url) {
         
         const details = await response.json();
         
-        // Show the actual content
-        showDetailsModal(details);
+        // Show content with animation
+        requestAnimationFrame(() => {
+            showDetailsModal(details);
+            setTimeout(() => {
+                const modal = document.getElementById('detailModal');
+                if (modal) {
+                    modal.classList.add('show');
+                }
+            }, 50);
+        });
         
     } catch (error) {
         console.error('Error fetching details:', error);
-        
-        // Show error in modal
-        showDetailsModal({ error: error.message || 'An unknown error occurred' });
+        showDetailsModal({ 
+            error: error.message || 'Failed to load analysis details. Please try again.' 
+        });
     }
 }
 
+function formatObjectData(data) {
+    if (Array.isArray(data)) {
+        return data.map(item => {
+            if (typeof item === 'object' && item !== null) {
+                // Handle specific object types differently
+                if (item.name && item.value) {
+                    return `${item.name}: ${item.value}`;
+                } else if (item.url && item.text) {
+                    return `${item.text} (${item.url})`;
+                } else {
+                    return Object.entries(item)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                }
+            }
+            return String(item);
+        }).join('\n');
+    } else if (typeof data === 'object' && data !== null) {
+        return Object.entries(data)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('\n');
+    }
+    return String(data);
+}
+
 function showDetailsModal(details) {
+    // Create modal if it doesn't exist
     let modal = document.getElementById('detailModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -341,10 +380,9 @@ function showDetailsModal(details) {
         document.body.appendChild(modal);
     }
 
-    let modalContent;
-
+    // Show loading state first
     if (details.loading) {
-        modalContent = `
+        modal.innerHTML = `
             <div class="modal-content">
                 <span class="close">&times;</span>
                 <div class="modal-loader">
@@ -353,87 +391,98 @@ function showDetailsModal(details) {
                 </div>
             </div>
         `;
-    } else if (details.error) {
-        modalContent = `
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <div class="modal-error">
-                    <h3>Error Loading Details</h3>
-                    <p>Failed to load analysis details. Please try again.</p>
-                    <p class="error-message">Error: ${details.error}</p>
-                    <button class="btn btn-secondary modal-close">Close</button>
-                </div>
-            </div>
-        `;
-    } else {
-        modalContent = `
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Analysis Details</h2>
-                
-                <div class="details-section">
-                    <p><strong>URL:</strong> ${details.input_string || details.url || details.original_input || 'N/A'}</p>
-                    <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
-                    <p><strong>Status:</strong> 
-                        <span class="status-badge ${details.main_verdict?.toLowerCase() || 'unknown'}">
-                            ${(details.main_verdict || 'Unknown').toUpperCase()}
-                        </span>
-                    </p>
-                    <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
-                </div>
-
-                ${details.metadata ? `
-                    <div class="metadata-section">
-                        <h3>Additional Information</h3>
-                        ${Object.entries(details.metadata)
-                            .filter(([key, value]) => value !== null && value !== undefined)
-                            .map(([key, value]) => `
-                                <p><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</p>
-                            `).join('')}
-                    </div>
-                ` : ''}
-
-                <div class="vendor-analysis">
-                    <h3>Vendor Analysis</h3>
-                    <table class="vendor-table">
-                        <thead>
-                            <tr>
-                                <th>Vendor</th>
-                                <th>Verdict</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${details.vendor_analysis
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map(vendor => `
-                                    <tr>
-                                        <td>${vendor.name}</td>
-                                        <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
-                                    </tr>
-                                `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+        modal.style.display = 'block';
+        return;
     }
 
-    modal.innerHTML = modalContent;
-    modal.style.display = 'block';
+    // Format metadata for display
+    const formatMetadata = (metadata) => {
+        if (!metadata) return {};
+        const formatted = {};
+        Object.entries(metadata).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+                if (typeof value === 'object') {
+                    formatted[key] = formatObjectData(value);
+                } else {
+                    formatted[key] = value;
+                }
+            }
+        });
+        return formatted;
+    };
 
-    // Add event listeners
-    const closeButtons = modal.querySelectorAll('.close, .modal-close');
-    closeButtons.forEach(button => {
-        button.onclick = () => {
-            modal.style.display = 'none';
+    const formattedMetadata = formatMetadata(details.metadata);
+
+    // Prepare the content
+    const modalContent = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Analysis Details</h2>
+            
+            <div class="details-section">
+                <p><strong>URL:</strong> ${details.input_string || details.url || details.original_input || 'N/A'}</p>
+                <p><strong>Analysis Date:</strong> ${details.analysis_date || 'N/A'}</p>
+                <p><strong>Status:</strong> 
+                    <span class="status-badge ${details.main_verdict?.toLowerCase() || 'unknown'}">
+                        ${(details.main_verdict || 'Unknown').toUpperCase()}
+                    </span>
+                </p>
+                <p><strong>Community Score:</strong> ${details.community_score || 'N/A'}</p>
+            </div>
+
+            <div class="metadata-section">
+                <h3>Additional Information</h3>
+                ${Object.entries(formattedMetadata)
+                    .map(([key, value]) => `
+                        <div class="metadata-item">
+                            <strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong>
+                            <pre class="metadata-value">${value}</pre>
+                        </div>
+                    `).join('')}
+            </div>
+
+            <div class="vendor-analysis">
+                <h3>Vendor Analysis</h3>
+                <table class="vendor-table">
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${details.vendor_analysis
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(vendor => `
+                                <tr>
+                                    <td>${vendor.name}</td>
+                                    <td class="${vendor.verdict.toLowerCase()}">${vendor.verdict}</td>
+                                </tr>
+                            `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Use requestAnimationFrame to smooth out the transition
+    requestAnimationFrame(() => {
+        modal.innerHTML = modalContent;
+        
+        // Add event listeners
+        const closeButtons = modal.querySelectorAll('.close, .modal-close');
+        closeButtons.forEach(button => {
+            button.onclick = () => {
+                modal.style.display = 'none';
+            };
+        });
+
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
         };
     });
-
-    window.onclick = (event) => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    };
 }
 
 function cleanupModal() {
