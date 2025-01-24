@@ -88,6 +88,13 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
+
+    # Add session_token column to users table if it doesn't exist
+    c.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in c.fetchall()]
+    if 'session_token' not in columns:
+        c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
+        print("Added session_token column to users table")
     
     # Create users table if it doesn't exist with separate username and email fields
     c.execute('''
@@ -297,8 +304,51 @@ def login_required(func):
     async def decorated_view(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login', next=request.url))
+        
+        # Verify session token
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT session_token FROM users WHERE id = ?", 
+                     (session['user_id'],))
+            user = c.fetchone()
+            conn.close()
+            
+            if not user or user['session_token'] != session.get('session_token'):
+                # Session is invalid, clear it
+                session.clear()
+                await flash('Your session has expired or been invalidated. Please login again.', 'error')
+                return redirect(url_for('login', next=request.url))
+                
+        except Exception as e:
+            logger.error(f"Error checking session token: {str(e)}")
+            session.clear()
+            await flash('An error occurred. Please login again.', 'error')
+            return redirect(url_for('login', next=request.url))
+            
         return await func(*args, **kwargs)
     return decorated_view
+
+@app.route('/force_logout/<int:user_id>', methods=['POST'])
+@login_required
+async def force_logout(user_id):
+    if not session.get('is_admin'):
+        await flash('You do not have permission to perform this action.', 'error')
+        return redirect(url_for('home'))
+        
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE users SET session_token = NULL WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        
+        await flash('User has been logged out from all devices.', 'success')
+    except Exception as e:
+        logger.error(f"Error during force logout: {str(e)}")
+        await flash('An error occurred while logging out the user.', 'error')
+        
+    return redirect(url_for('manage_users'))
 
 @app.route('/')
 @login_required
@@ -1698,27 +1748,66 @@ async def login():
         
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("SELECT * FROM users WHERE username = ? OR email = ?", (username_or_email, username_or_email))
-        user = c.fetchone()
-        conn.close()
+        
+        try:
+            # Check if user exists and password is correct
+            c.execute("SELECT * FROM users WHERE username = ? OR email = ?", 
+                     (username_or_email, username_or_email))
+            user = c.fetchone()
 
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['is_admin'] = user['is_admin']
-            await flash('Login successful!', 'success')
-            return redirect(url_for('home'))
-        else:
-            await flash('Invalid username or password.', 'error')
+            if user and check_password_hash(user['password'], password):
+                # Check if user already has an active session
+                if user['session_token']:
+                    await flash('This account is already logged in on another device.', 'error')
+                    return await render_template('login.html')
+                
+                # Generate new session token
+                session_token = str(uuid.uuid4())
+                
+                # Update user's session token in database
+                c.execute("UPDATE users SET session_token = ? WHERE id = ?",
+                         (session_token, user['id']))
+                conn.commit()
+                
+                # Store session information
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['is_admin'] = user['is_admin']
+                session['session_token'] = session_token
+                
+                await flash('Login successful!', 'success')
+                return redirect(url_for('home'))
+            else:
+                await flash('Invalid username or password.', 'error')
+        finally:
+            conn.close()
+            
     return await render_template('login.html')
 
 @app.route('/logout')
 @login_required
 async def logout():
-    session.pop('user_id', None)
-    session.pop('username', None)
-    session.pop('is_admin', None)
-    await flash('You have been successfully logged out.', 'success')
+    try:
+        # Clear session token from database
+        if 'user_id' in session:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("UPDATE users SET session_token = NULL WHERE id = ?",
+                     (session['user_id'],))
+            conn.commit()
+            conn.close()
+        
+        # Clear session data
+        session.pop('user_id', None)
+        session.pop('username', None)
+        session.pop('is_admin', None)
+        session.pop('session_token', None)
+        
+        await flash('You have been successfully logged out.', 'success')
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        await flash('An error occurred during logout.', 'error')
+    
     return redirect(url_for('login'))
 
 @app.route('/create_user', methods=['GET', 'POST'])
