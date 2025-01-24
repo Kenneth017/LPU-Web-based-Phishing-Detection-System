@@ -24,10 +24,10 @@
             {% for user in users %}
             <tr>
                 <td>
-                    <span class="status-indicator {{ 'status-active' if user.is_admin else '' }}"></span>
+                    <span class="status-indicator {{ 'admin-indicator' if user.is_admin else '' }}"></span>
                     {{ user.username }}
                     {% if user.is_admin %}
-                    <span class="admin-badge">Admin</span>
+                    <span class="admin-badge" title="Administrator">Admin</span>
                     {% endif %}
                 </td>
                 <td>{{ user.email }}</td>
