@@ -42,3 +42,5 @@ ENV/
 
 # Dataset files
 /datasets/
+
+phishing_history.db
