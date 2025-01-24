@@ -34,33 +34,41 @@ import extract_msg
 import hashlib
 from itsdangerous import URLSafeTimedSerializer
 from quart import request, flash, redirect, url_for, render_template
+from dotenv import load_dotenv
 
-# Add these lines instead:
+# Set up timezone
 singapore_tz = pytz.timezone('Asia/Singapore')
+
+# Determine the database path
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    # Running on Render.com, use the persistent disk path
+    DB_PATH = '/opt/render/project/src/instance/phishing_history.db'
+    print(f"Running on Render. Using database path: {DB_PATH}")
+else:
+    # Local development
+    DB_PATH = 'phishing_history.db'
+    print(f"Running locally. Using database path: {DB_PATH}")
 
 def get_singapore_time():
     """Get current time in Singapore timezone (GMT+8)"""
     return datetime.now(singapore_tz).strftime('%Y-%m-%d %H:%M:%S')
 
 # Load environment variables
-from dotenv import load_dotenv
 load_dotenv()
 
-app = Quart(__name__)
+# Initialize Quart app
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
 
-
+# Set up logger
 logger = setup_logger(__name__)
 
 def convert_to_local_time(timestamp_str):
     """Convert UTC timestamp to GMT+8"""
     try:
-        # Parse the timestamp
         dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-        # Make it timezone aware (assuming stored time is in UTC)
         dt = pytz.UTC.localize(dt)
-        # Convert to GMT+8
         local_dt = dt.astimezone(singapore_tz)
         return local_dt.strftime('%Y-%m-%d %H:%M:%S')
     except Exception as e:
@@ -68,24 +76,36 @@ def convert_to_local_time(timestamp_str):
         return timestamp_str
 
 def ensure_db_directory():
-    db_dir = os.path.dirname('phishing_history.db')
+    db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir)
+        logger.info(f"Created directory for database: {db_dir}")
 
 def get_db_connection():
     try:
-        conn = sqlite3.connect('phishing_history.db')
+        ensure_db_directory()
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        # Set timezone to Asia/Singapore
-        conn.execute("PRAGMA timezone = 'Asia/Singapore'")
-        # Force SQLite to use Singapore timezone for datetime functions
-        conn.execute("SELECT datetime('now', 'localtime')")
         return conn
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {str(e)}")
         raise
 
+# Add this function to initialize the database if it doesn't exist
+def initialize_db_if_needed():
+    if not os.path.exists(DB_PATH):
+        logger.info("Database does not exist. Initializing...")
+        with app.app_context():
+            init_db()
+        logger.info("Database initialized successfully.")
+
+# Call this function after your app initialization
+initialize_db_if_needed()
+
 def init_db():
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    
     conn = get_db_connection()
     c = conn.cursor()
 
