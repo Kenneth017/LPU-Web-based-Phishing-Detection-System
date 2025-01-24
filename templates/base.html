@@ -102,18 +102,21 @@
                         fetch('/extend_session', { 
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': '{{ csrf_token() }}'  // If you're using CSRF protection
+                                'Content-Type': 'application/json'
                             },
                         })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                alert("Session extended successfully.");
+                                console.log("Session extended successfully.");
                             } else {
                                 alert("Failed to extend session. Please log in again.");
                                 window.location.href = "{{ url_for('login') }}";
                             }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert("An error occurred while extending the session.");
                         });
                     }
                 } else if (timeLeft <= 0) {
@@ -122,6 +125,9 @@
                 }
             }
 
+            // Initial check
+            checkSessionExpiry();
+            // Set up periodic checks
             setInterval(checkSessionExpiry, 60000);  // Check every minute
             {% endif %}
         });
