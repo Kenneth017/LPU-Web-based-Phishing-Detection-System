@@ -442,7 +442,7 @@ def login_required(func):
                 return redirect(url_for('login', next=request.url))
             
             # If session is valid, extend its expiry time
-            new_expiry = datetime.now() + timedelta(days=1)
+            new_expiry = datetime.now() + dt.timedelta(days=1)  # Use dt.timedelta here
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("UPDATE users SET session_expiry = ? WHERE id = ?", 
@@ -1943,7 +1943,7 @@ async def login():
             conn.close()
             
     return await render_template('login.html')
-
+    
 @app.route('/logout')
 @login_required
 async def logout():
@@ -2008,7 +2008,7 @@ async def create_user():
             # Send welcome email with credentials
             try:
                 subject = 'Welcome to Cyber Phishing Detection System'
-                login_url = url_for('login', _external=True)  # Generate full URL for login page
+                login_url = url_for('login', _external=True)
                 html_content = f"""
                 <html>
                     <head>
