@@ -108,7 +108,7 @@ def get_db_connection():
     try:
         print(f"Attempting to connect to database at: {DB_PATH}")
         conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
+        conn.row_factory = sqlite3.Row  # This line is important
         print(f"Successfully connected to database at: {DB_PATH}")
         return conn
     except sqlite3.Error as e:
@@ -308,53 +308,43 @@ def init_db():
             ''')
 
         # Add or update admin user with environment variables
-        admin_username = os.getenv('ADMIN_DEFAULT_USERNAME', 'admin')
-        admin_email = os.getenv('ADMIN_DEFAULT_EMAIL', 'admin@example.com')
-        admin_password = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin_password')
-
-        try:
-            # Check for existing admin user
-            c.execute("SELECT * FROM users WHERE username = ? OR username = 'admin Admin'", (admin_username,))
-            admin_user = c.fetchone()
-            
-            if admin_user is None:
-                # Create new admin user
-                hashed_password = generate_password_hash(admin_password)
-                c.execute("""
-                    INSERT INTO users 
-                    (username, email, password, is_admin, session_token, session_expiry, email_verified) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (admin_username, admin_email, hashed_password, True, None, None, True))
-                print(f"Admin user '{admin_username}' created successfully. Please change the password after first login.")
-            else:
-                # Update existing admin user if needed
-                if RENDER_EXTERNAL_HOSTNAME:  # Only update password on Render if explicitly set
-                    if os.getenv('ADMIN_DEFAULT_PASSWORD'):
-                        hashed_password = generate_password_hash(admin_password)
-                        c.execute("""
-                            UPDATE users 
-                            SET username = ?,
-                                email = ?,
-                                password = ?,
-                                is_admin = 1,
-                                email_verified = 1
-                            WHERE id = ?
-                        """, (admin_username, admin_email, hashed_password, admin_user['id']))
-                        print(f"Admin user '{admin_username}' updated with new credentials.")
+        admin_username = os.getenv('ADMIN_DEFAULT_USERNAME')
+        admin_email = os.getenv('ADMIN_DEFAULT_EMAIL')
+        admin_password = os.getenv('ADMIN_DEFAULT_PASSWORD')
+    
+        if not all([admin_username, admin_email, admin_password]):
+            print("Warning: Admin credentials not fully set in environment variables.")
+            logger.warning("Admin credentials not fully set in environment variables.")
+        else:
+            try:
+                # Check for existing admin user
+                c.execute("SELECT id, username, email FROM users WHERE username = ?", (admin_username,))
+                admin_user = c.fetchone()
+                
+                if admin_user is None:
+                    # Create new admin user
+                    hashed_password = generate_password_hash(admin_password)
+                    c.execute("""
+                        INSERT INTO users 
+                        (username, email, password, is_admin, session_token, session_expiry, email_verified) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (admin_username, admin_email, hashed_password, True, None, None, True))
+                    print(f"Admin user '{admin_username}' created successfully.")
                 else:
-                    # Just ensure admin privileges and email are set
+                    # Update existing admin user
+                    hashed_password = generate_password_hash(admin_password)
                     c.execute("""
                         UPDATE users 
-                        SET username = ?,
-                            email = COALESCE(email, ?),
+                        SET email = ?,
+                            password = ?,
                             is_admin = 1,
                             email_verified = 1
                         WHERE id = ?
-                    """, (admin_username, admin_email, admin_user['id']))
-                    print(f"Admin user '{admin_username}' privileges confirmed.")
-        except Exception as e:
-            print(f"Error managing admin user: {e}")
-            logger.error(f"Error managing admin user: {e}")
+                    """, (admin_email, hashed_password, admin_user[0]))
+                    print(f"Admin user '{admin_username}' updated with new credentials.")
+            except Exception as e:
+                print(f"Error managing admin user: {e}")
+                logger.error(f"Error managing admin user: {e}")
 
         # Add main_verdict column to analysis_history if it doesn't exist
         c.execute("PRAGMA table_info(analysis_history)")
