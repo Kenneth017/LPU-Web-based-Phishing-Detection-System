@@ -1789,6 +1789,9 @@ async def login():
                 return redirect(url_for('home'))
             else:
                 await flash('Invalid username or password.', 'error')
+        except Exception as e:
+            logger.error(f"Error during login: {str(e)}")
+            await flash('An error occurred during login.', 'error')
         finally:
             conn.close()
             
