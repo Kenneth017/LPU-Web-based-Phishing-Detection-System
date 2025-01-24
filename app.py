@@ -43,9 +43,12 @@ singapore_tz = pytz.timezone('Asia/Singapore')
 # Determine the database path
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
-    # Running on Render.com, use the persistent disk path
     DB_PATH = '/opt/render/project/src/instance/phishing_history.db'
-    print(f"Running on Render. Using database path: {DB_PATH}")
+else:
+    DB_PATH = 'phishing_history.db'
+
+print(f"Using database path: {DB_PATH}")
+
 else:
     # Local development
     DB_PATH = 'phishing_history.db'
@@ -135,27 +138,37 @@ def init_db():
     try:
         print(f"Starting database initialization. DB_PATH: {DB_PATH}")
         
-        # Ensure the directory exists
+        # Check directory permissions
         db_dir = os.path.dirname(DB_PATH)
-        print(f"Attempting to create directory: {db_dir}")
-        os.makedirs(db_dir, exist_ok=True)
-        print(f"Directory created or already exists: {db_dir}")
+        print(f"Database directory: {db_dir}")
         
-        # Check if the directory is writable
-        test_file = os.path.join(db_dir, 'test_write.txt')
-        try:
-            with open(test_file, 'w') as f:
-                f.write('test')
-            os.remove(test_file)
-            print(f"Directory is writable: {db_dir}")
-        except Exception as e:
-            print(f"Directory is not writable: {db_dir}. Error: {str(e)}")
-            raise
+        if os.path.exists(db_dir):
+            print(f"Directory exists: {db_dir}")
+            # Check directory permissions
+            dir_stat = os.stat(db_dir)
+            print(f"Directory permissions: {stat.filemode(dir_stat.st_mode)}")
+            print(f"Directory owner: {dir_stat.st_uid}, group: {dir_stat.st_gid}")
+            
+            # Check if we can list the directory contents
+            try:
+                os.listdir(db_dir)
+                print(f"Can list directory contents: {db_dir}")
+            except PermissionError:
+                print(f"Cannot list directory contents: {db_dir}")
+        else:
+            print(f"Directory does not exist: {db_dir}")
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+                print(f"Created directory: {db_dir}")
+            except PermissionError:
+                print(f"Cannot create directory: {db_dir}")
         
-        print("Attempting to get database connection")
-        conn = get_db_connection()
+        # Attempt to open the database file
+        print(f"Attempting to open database file: {DB_PATH}")
+        conn = sqlite3.connect(DB_PATH)
+        print("Successfully opened database connection")
+        
         c = conn.cursor()
-        print("Database connection established")
 
         print("Creating users table if it doesn't exist")
         c.execute('''
