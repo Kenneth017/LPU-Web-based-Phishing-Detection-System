@@ -1,4 +1,4 @@
-/* Existing styles */
+/* Base dashboard styles */
 .ml-dashboard {
     padding: 1rem;
     height: calc(100vh - 60px);
@@ -23,6 +23,7 @@
     height: calc(100% - 3rem);
 }
 
+/* Metric cards */
 .metric-cards {
     grid-column: 1 / -1;
     display: flex;
@@ -56,6 +57,7 @@
     color: var(--accent-color);
 }
 
+/* Chart cards */
 .chart-card {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
@@ -85,9 +87,51 @@
 
 .chart-content {
     flex: 1;
+    min-height: 0; /* Added to fix chart scaling */
 }
 
-/* New styles for modal and maximize button */
+/* Chart actions */
+.chart-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.download-csv-btn, .download-pdf-btn {
+    background: none;
+    border: 1px solid var(--accent-color);
+    color: var(--accent-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.download-csv-btn:hover, .download-pdf-btn:hover {
+    background-color: var(--accent-color);
+    color: var(--secondary-bg);
+}
+
+.maximize-btn {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.maximize-btn:hover {
+    transform: scale(1.2);
+    color: var(--text-color);
+}
+
+/* Modal styles */
 .modal {
     display: none;
     position: fixed;
@@ -97,6 +141,7 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
 }
 
 .modal-content {
@@ -108,6 +153,7 @@
     width: 80%;
     height: 80%;
     position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
@@ -120,6 +166,7 @@
 .modal-header h2 {
     color: var(--accent-color);
     margin: 0;
+    font-size: 1.2rem;
 }
 
 .close {
@@ -127,6 +174,9 @@
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
+    transition: color 0.3s ease;
+    line-height: 1;
+    padding: 0 5px;
 }
 
 .close:hover {
@@ -136,21 +186,15 @@
 #modalChartContent {
     height: calc(100% - 60px);
     width: 100%;
+    position: relative;
 }
 
-.maximize-btn {
-    background: none;
-    border: none;
-    color: var(--accent-color);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 5px;
-    transition: transform 0.3s ease;
-}
-
-.maximize-btn:hover {
-    transform: scale(1.2);
-    color: var(--text-color);
+#modalChartContent > div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 /* Responsive adjustments */
@@ -165,15 +209,18 @@
     .ml-dashboard {
         height: auto;
         overflow-y: auto;
+        padding: 0.5rem;
     }
 
     .dashboard-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto repeat(6, auto);
+        gap: 0.5rem;
     }
 
     .metric-cards {
         flex-direction: column;
+        gap: 0.5rem;
     }
 
     .chart-card {
@@ -183,5 +230,37 @@
     .modal-content {
         width: 95%;
         height: 90%;
+        margin: 2.5% auto;
+        padding: 10px;
+    }
+
+    .download-csv-btn, .download-pdf-btn {
+        font-size: 0.7rem;
+        padding: 1px 3px;
+    }
+
+    .chart-actions {
+        gap: 3px;
+    }
+
+    .maximize-btn {
+        font-size: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .ml-dashboard {
+        height: auto;
+        overflow: visible;
+    }
+
+    .chart-actions {
+        display: none;
+    }
+
+    .chart-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }
