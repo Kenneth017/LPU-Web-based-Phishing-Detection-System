@@ -51,6 +51,16 @@ else:
     DB_PATH = 'phishing_history.db'
     print(f"Running locally. Using database path: {DB_PATH}")
 
+print(f"Checking database path: {DB_PATH}")
+if os.path.exists(os.path.dirname(DB_PATH)):
+    print(f"Path exists: {os.path.dirname(DB_PATH)}")
+    if os.access(os.path.dirname(DB_PATH), os.W_OK):
+        print(f"Path is writable: {os.path.dirname(DB_PATH)}")
+    else:
+        print(f"Path is not writable: {os.path.dirname(DB_PATH)}")
+else:
+    print(f"Path does not exist: {os.path.dirname(DB_PATH)}")
+
 def get_singapore_time():
     """Get current time in Singapore timezone (GMT+8)"""
     return datetime.now(singapore_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -78,18 +88,34 @@ def convert_to_local_time(timestamp_str):
 
 def ensure_db_directory():
     db_dir = os.path.dirname(DB_PATH)
-    if db_dir and not os.path.exists(db_dir):
+    print(f"Attempting to create directory: {db_dir}")
+    try:
         os.makedirs(db_dir, exist_ok=True)
-        print(f"Created directory for database: {db_dir}")
+        print(f"Directory created or already exists: {db_dir}")
+        # Check if the directory is writable
+        test_file = os.path.join(db_dir, 'test_write.txt')
+        try:
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            print(f"Directory is writable: {db_dir}")
+        except Exception as e:
+            print(f"Directory is not writable: {db_dir}. Error: {str(e)}")
+    except Exception as e:
+        print(f"Error creating directory {db_dir}: {str(e)}")
 
 def get_db_connection():
     try:
-        ensure_db_directory()
+        print(f"Attempting to connect to database at: {DB_PATH}")
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
+        print(f"Successfully connected to database at: {DB_PATH}")
         return conn
     except sqlite3.Error as e:
-        logger.error(f"Database connection error: {str(e)}")
+        print(f"SQLite error in get_db_connection: {str(e)}")
+        raise
+    except Exception as e:
+        print(f"Unexpected error in get_db_connection: {str(e)}")
         raise
 
 async def initialize_db_if_needed():
@@ -106,125 +132,157 @@ async def startup():
     await initialize_db_if_needed()
 
 def init_db():
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    
-    conn = get_db_connection()
-    c = conn.cursor()
-
-    # Create users table with all necessary columns
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS users
-    (id INTEGER PRIMARY KEY AUTOINCREMENT,
-     username TEXT UNIQUE NOT NULL,
-     email TEXT UNIQUE,
-     password TEXT NOT NULL,
-     is_admin BOOLEAN NOT NULL DEFAULT 0,
-     email_verified BOOLEAN DEFAULT 0,
-     session_token TEXT)
-    ''')
-
-    # Check if columns exist, if not add them
-    c.execute("PRAGMA table_info(users)")
-    columns = [column[1] for column in c.fetchall()]
-    
-    if 'email_verified' not in columns:
-        try:
-            c.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0")
-            print("Added email_verified column to users table")
-        except Exception as e:
-            print(f"Error adding email_verified column: {e}")
-    
-    if 'session_token' not in columns:
-        try:
-            c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
-            print("Added session_token column to users table")
-        except Exception as e:
-            print(f"Error adding session_token column: {e}")
-            
-    if 'session_expiry' not in columns:
-        try:
-            c.execute("ALTER TABLE users ADD COLUMN session_expiry TEXT")
-            print("Added session_expiry column to users table")
-        except Exception as e:
-            print(f"Error adding session_expiry column: {e}")
-
-    # Create or modify analysis_history table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS analysis_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        input_string TEXT NOT NULL,
-        input_type TEXT NOT NULL,
-        is_malicious INTEGER NOT NULL,
-        main_verdict TEXT NOT NULL,
-        community_score TEXT,
-        metadata TEXT,
-        vendor_analysis TEXT,
-        user_id INTEGER,
-        analysis_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        confidence_score REAL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-    ''')
-
-    # Check if new columns exist in analysis_history, if not add them
-    c.execute("PRAGMA table_info(analysis_history)")
-    columns = [column[1] for column in c.fetchall()]
-    
-    # Add new columns if they don't exist
-    if 'timezone' not in columns:
-        c.execute("ALTER TABLE analysis_history ADD COLUMN timezone TEXT DEFAULT 'UTC'")
-    
-    if 'response_time' not in columns:
-        c.execute("ALTER TABLE analysis_history ADD COLUMN response_time REAL")
-    
-    if 'last_checked' not in columns:
-        c.execute("ALTER TABLE analysis_history ADD COLUMN last_checked DATETIME")
-    
-    if 'status_code' not in columns:
-        c.execute("ALTER TABLE analysis_history ADD COLUMN status_code INTEGER")
-
-    # Create indexes for analysis_history
-    c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
-    
-    # Only create last_checked index if the column exists
     try:
-        c.execute('CREATE INDEX IF NOT EXISTS idx_last_checked ON analysis_history(last_checked)')
-    except sqlite3.OperationalError as e:
-        print(f"Note: Could not create last_checked index: {e}")
-    
-    # Set timezone to Asia/Singapore (GMT+8)
-    c.execute("PRAGMA timezone = 'Asia/Singapore'")
+        print(f"Starting database initialization. DB_PATH: {DB_PATH}")
+        
+        # Ensure the directory exists
+        db_dir = os.path.dirname(DB_PATH)
+        print(f"Attempting to create directory: {db_dir}")
+        os.makedirs(db_dir, exist_ok=True)
+        print(f"Directory created or already exists: {db_dir}")
+        
+        # Check if the directory is writable
+        test_file = os.path.join(db_dir, 'test_write.txt')
+        try:
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            print(f"Directory is writable: {db_dir}")
+        except Exception as e:
+            print(f"Directory is not writable: {db_dir}. Error: {str(e)}")
+            raise
+        
+        print("Attempting to get database connection")
+        conn = get_db_connection()
+        c = conn.cursor()
+        print("Database connection established")
 
-    # Handle user_feedback table
-    try:
-        c.execute("PRAGMA table_info(user_feedback)")
+        print("Creating users table if it doesn't exist")
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS users
+        (id INTEGER PRIMARY KEY AUTOINCREMENT,
+         username TEXT UNIQUE NOT NULL,
+         email TEXT UNIQUE,
+         password TEXT NOT NULL,
+         is_admin BOOLEAN NOT NULL DEFAULT 0,
+         email_verified BOOLEAN DEFAULT 0,
+         session_token TEXT)
+        ''')
+        print("Users table created or already exists")
+
+        # Check if columns exist, if not add them
+        c.execute("PRAGMA table_info(users)")
         columns = [column[1] for column in c.fetchall()]
         
-        if 'url' in columns and 'input_string' not in columns:
-            print("Migrating user_feedback table...")
-            c.execute('''
-                CREATE TABLE user_feedback_new
-                (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 user_id INTEGER,
-                 feedback_type TEXT,
-                 input_string TEXT,
-                 message TEXT,
-                 submission_date DATETIME,
-                 FOREIGN KEY (user_id) REFERENCES users(id))
-            ''')
+        if 'email_verified' not in columns:
+            try:
+                c.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0")
+                print("Added email_verified column to users table")
+            except Exception as e:
+                print(f"Error adding email_verified column: {e}")
+        
+        if 'session_token' not in columns:
+            try:
+                c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
+                print("Added session_token column to users table")
+            except Exception as e:
+                print(f"Error adding session_token column: {e}")
+                
+        if 'session_expiry' not in columns:
+            try:
+                c.execute("ALTER TABLE users ADD COLUMN session_expiry TEXT")
+                print("Added session_expiry column to users table")
+            except Exception as e:
+                print(f"Error adding session_expiry column: {e}")
+
+        # Create or modify analysis_history table
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS analysis_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            input_string TEXT NOT NULL,
+            input_type TEXT NOT NULL,
+            is_malicious INTEGER NOT NULL,
+            main_verdict TEXT NOT NULL,
+            community_score TEXT,
+            metadata TEXT,
+            vendor_analysis TEXT,
+            user_id INTEGER,
+            analysis_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            confidence_score REAL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        ''')
+
+        # Check if new columns exist in analysis_history, if not add them
+        c.execute("PRAGMA table_info(analysis_history)")
+        columns = [column[1] for column in c.fetchall()]
+        
+        # Add new columns if they don't exist
+        if 'timezone' not in columns:
+            c.execute("ALTER TABLE analysis_history ADD COLUMN timezone TEXT DEFAULT 'UTC'")
+        
+        if 'response_time' not in columns:
+            c.execute("ALTER TABLE analysis_history ADD COLUMN response_time REAL")
+        
+        if 'last_checked' not in columns:
+            c.execute("ALTER TABLE analysis_history ADD COLUMN last_checked DATETIME")
+        
+        if 'status_code' not in columns:
+            c.execute("ALTER TABLE analysis_history ADD COLUMN status_code INTEGER")
+
+        # Create indexes for analysis_history
+        c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
+        
+        # Only create last_checked index if the column exists
+        try:
+            c.execute('CREATE INDEX IF NOT EXISTS idx_last_checked ON analysis_history(last_checked)')
+        except sqlite3.OperationalError as e:
+            print(f"Note: Could not create last_checked index: {e}")
+        
+        # Set timezone to Asia/Singapore (GMT+8)
+        c.execute("PRAGMA timezone = 'Asia/Singapore'")
+
+        # Handle user_feedback table
+        try:
+            c.execute("PRAGMA table_info(user_feedback)")
+            columns = [column[1] for column in c.fetchall()]
             
-            c.execute('''
-                INSERT INTO user_feedback_new (id, user_id, feedback_type, input_string, message, submission_date)
-                SELECT id, user_id, feedback_type, url, message, submission_date FROM user_feedback
-            ''')
-            
-            c.execute('DROP TABLE user_feedback')
-            c.execute('ALTER TABLE user_feedback_new RENAME TO user_feedback')
-            print("Migration completed successfully")
-        else:
+            if 'url' in columns and 'input_string' not in columns:
+                print("Migrating user_feedback table...")
+                c.execute('''
+                    CREATE TABLE user_feedback_new
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     user_id INTEGER,
+                     feedback_type TEXT,
+                     input_string TEXT,
+                     message TEXT,
+                     submission_date DATETIME,
+                     FOREIGN KEY (user_id) REFERENCES users(id))
+                ''')
+                
+                c.execute('''
+                    INSERT INTO user_feedback_new (id, user_id, feedback_type, input_string, message, submission_date)
+                    SELECT id, user_id, feedback_type, url, message, submission_date FROM user_feedback
+                ''')
+                
+                c.execute('DROP TABLE user_feedback')
+                c.execute('ALTER TABLE user_feedback_new RENAME TO user_feedback')
+                print("Migration completed successfully")
+            else:
+                c.execute('''
+                    CREATE TABLE IF NOT EXISTS user_feedback
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     user_id INTEGER,
+                     feedback_type TEXT,
+                     input_string TEXT,
+                     message TEXT,
+                     submission_date DATETIME,
+                     FOREIGN KEY (user_id) REFERENCES users(id))
+                ''')
+        except Exception as e:
+            print(f"Error during migration: {e}")
             c.execute('''
                 CREATE TABLE IF NOT EXISTS user_feedback
                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -235,83 +293,80 @@ def init_db():
                  submission_date DATETIME,
                  FOREIGN KEY (user_id) REFERENCES users(id))
             ''')
-    except Exception as e:
-        print(f"Error during migration: {e}")
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS user_feedback
-            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-             user_id INTEGER,
-             feedback_type TEXT,
-             input_string TEXT,
-             message TEXT,
-             submission_date DATETIME,
-             FOREIGN KEY (user_id) REFERENCES users(id))
-        ''')
 
-    # Add or update admin user with environment variables
-    admin_username = os.getenv('ADMIN_DEFAULT_USERNAME', 'admin')
-    admin_email = os.getenv('ADMIN_DEFAULT_EMAIL', 'admin@example.com')
-    admin_password = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin_password')
+        # Add or update admin user with environment variables
+        admin_username = os.getenv('ADMIN_DEFAULT_USERNAME', 'admin')
+        admin_email = os.getenv('ADMIN_DEFAULT_EMAIL', 'admin@example.com')
+        admin_password = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin_password')
 
-    try:
-        # Check for existing admin user
-        c.execute("SELECT * FROM users WHERE username = ? OR username = 'admin Admin'", (admin_username,))
-        admin_user = c.fetchone()
-        
-        if admin_user is None:
-            # Create new admin user
-            hashed_password = generate_password_hash(admin_password)
-            c.execute("""
-                INSERT INTO users 
-                (username, email, password, is_admin, session_token, session_expiry, email_verified) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (admin_username, admin_email, hashed_password, True, None, None, True))
-            print(f"Admin user '{admin_username}' created successfully. Please change the password after first login.")
-        else:
-            # Update existing admin user if needed
-            if RENDER_EXTERNAL_HOSTNAME:  # Only update password on Render if explicitly set
-                if os.getenv('ADMIN_DEFAULT_PASSWORD'):
-                    hashed_password = generate_password_hash(admin_password)
+        try:
+            # Check for existing admin user
+            c.execute("SELECT * FROM users WHERE username = ? OR username = 'admin Admin'", (admin_username,))
+            admin_user = c.fetchone()
+            
+            if admin_user is None:
+                # Create new admin user
+                hashed_password = generate_password_hash(admin_password)
+                c.execute("""
+                    INSERT INTO users 
+                    (username, email, password, is_admin, session_token, session_expiry, email_verified) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (admin_username, admin_email, hashed_password, True, None, None, True))
+                print(f"Admin user '{admin_username}' created successfully. Please change the password after first login.")
+            else:
+                # Update existing admin user if needed
+                if RENDER_EXTERNAL_HOSTNAME:  # Only update password on Render if explicitly set
+                    if os.getenv('ADMIN_DEFAULT_PASSWORD'):
+                        hashed_password = generate_password_hash(admin_password)
+                        c.execute("""
+                            UPDATE users 
+                            SET username = ?,
+                                email = ?,
+                                password = ?,
+                                is_admin = 1,
+                                email_verified = 1
+                            WHERE id = ?
+                        """, (admin_username, admin_email, hashed_password, admin_user['id']))
+                        print(f"Admin user '{admin_username}' updated with new credentials.")
+                else:
+                    # Just ensure admin privileges and email are set
                     c.execute("""
                         UPDATE users 
                         SET username = ?,
-                            email = ?,
-                            password = ?,
+                            email = COALESCE(email, ?),
                             is_admin = 1,
                             email_verified = 1
                         WHERE id = ?
-                    """, (admin_username, admin_email, hashed_password, admin_user['id']))
-                    print(f"Admin user '{admin_username}' updated with new credentials.")
-            else:
-                # Just ensure admin privileges and email are set
-                c.execute("""
-                    UPDATE users 
-                    SET username = ?,
-                        email = COALESCE(email, ?),
-                        is_admin = 1,
-                        email_verified = 1
-                    WHERE id = ?
-                """, (admin_username, admin_email, admin_user['id']))
-                print(f"Admin user '{admin_username}' privileges confirmed.")
+                    """, (admin_username, admin_email, admin_user['id']))
+                    print(f"Admin user '{admin_username}' privileges confirmed.")
+        except Exception as e:
+            print(f"Error managing admin user: {e}")
+            logger.error(f"Error managing admin user: {e}")
+
+        # Add main_verdict column to analysis_history if it doesn't exist
+        c.execute("PRAGMA table_info(analysis_history)")
+        columns = [column[1] for column in c.fetchall()]
+        if 'main_verdict' not in columns:
+            c.execute("ALTER TABLE analysis_history ADD COLUMN main_verdict TEXT NOT NULL DEFAULT 'unknown'")
+            print("Added main_verdict column to analysis_history table")
+
+        # Create indexes
+        c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
+        print("Created indexes on analysis_history table")
+
+        conn.commit()
+        conn.close()
+        print("Database initialized successfully")
+        
+    except sqlite3.Error as e:
+        print(f"SQLite error in init_db: {str(e)}")
+        logger.error(f"SQLite error in init_db: {str(e)}")
+        raise
     except Exception as e:
-        print(f"Error managing admin user: {e}")
-        logger.error(f"Error managing admin user: {e}")
-
-    # Add main_verdict column to analysis_history if it doesn't exist
-    c.execute("PRAGMA table_info(analysis_history)")
-    columns = [column[1] for column in c.fetchall()]
-    if 'main_verdict' not in columns:
-        c.execute("ALTER TABLE analysis_history ADD COLUMN main_verdict TEXT NOT NULL DEFAULT 'unknown'")
-        print("Added main_verdict column to analysis_history table")
-
-    # Create indexes
-    c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
-    print("Created indexes on analysis_history table")
-
-    conn.commit()
-    conn.close()
-    print("Database initialized successfully")
+        print(f"Unexpected error in init_db: {str(e)}")
+        logger.error(f"Unexpected error in init_db: {str(e)}")
+        raise
 
 def update_admin_username():
     conn = get_db_connection()
@@ -2362,6 +2417,11 @@ migrate_database()  # Then migrate if needed
 feedback_handler = FeedbackHandler()
 
 if __name__ == '__main__':
+    try:
+        init_db()
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
+    
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
