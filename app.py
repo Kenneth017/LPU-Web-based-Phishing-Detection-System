@@ -2075,11 +2075,15 @@ async def manage_users():
                        WHEN password IS NOT NULL THEN '********'
                        ELSE 'No password set'
                    END as masked_password,
-                   is_admin
+                   is_admin,
+                   CASE
+                       WHEN session_token IS NOT NULL THEN 'Online'
+                       ELSE 'Offline'
+                   END as status
             FROM users
             ORDER BY username
         """)
-        users = [dict(row) for row in c.fetchall()]  # Convert rows to dictionaries
+        users = [dict(row) for row in c.fetchall()]
         conn.close()
         
         return await render_template('manage_users.html', users=users)
