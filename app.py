@@ -368,9 +368,10 @@ async def force_logout(user_id):
         # If the logged-out user is the current user, clear their session
         if user_id == session.get('user_id'):
             session.clear()
-        
-        await flash('User has been logged out from all devices.', 'success')
-        return jsonify({'success': True, 'redirect': url_for('login') if user_id == session.get('user_id') else None})
+            return jsonify({'success': True, 'redirect': url_for('login')})
+        else:
+            await flash('User has been logged out from all devices.', 'success')
+            return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error during force logout: {str(e)}")
         await flash('An error occurred while logging out the user.', 'error')
@@ -1781,9 +1782,14 @@ async def login():
             user = c.fetchone()
 
             if user and check_password_hash(user['password'], password):
-                # Invalidate any existing sessions for this user
-                c.execute("UPDATE users SET session_token = NULL, session_expiry = NULL WHERE id = ?", (user['id'],))
-                
+                # Check if user is already logged in
+                if user['session_token'] and user['session_expiry']:
+                    expiry_time = datetime.fromisoformat(user['session_expiry'])
+                    if datetime.now() < expiry_time:
+                        await flash('This account is already logged in on another device.', 'error')
+                        return redirect(url_for('login'))
+
+                # If not logged in or session expired, create new session
                 session_token = str(uuid.uuid4())
                 expiry_time = datetime.now() + timedelta(days=1)  # Set session to expire in 1 day
                 
