@@ -89,14 +89,14 @@
                     flashMessages.style.display = 'none';
                 }, 2000); // Disappear after 2 seconds
             }
-
+    
             // Session expiry check
             {% if session.get('user_id') and session.get('session_expiry') %}
             function checkSessionExpiry() {
                 const expiryTime = new Date("{{ session.session_expiry }}");
                 const now = new Date();
                 const timeLeft = expiryTime - now;
-
+    
                 if (timeLeft < 300000 && timeLeft > 0) {  // Less than 5 minutes left
                     if (confirm("Your session will expire in less than 5 minutes. Do you want to extend it?")) {
                         fetch('/extend_session', { 
@@ -124,12 +124,37 @@
                     window.location.href = "{{ url_for('login') }}";
                 }
             }
-
+    
             // Initial check
             checkSessionExpiry();
             // Set up periodic checks
             setInterval(checkSessionExpiry, 60000);  // Check every minute
             {% endif %}
+    
+            // Handle force logout
+            const forceLogoutForms = document.querySelectorAll('form[action^="/force_logout/"]');
+            forceLogoutForms.forEach(form => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('User has been logged out from all devices.');
+                        if (result.redirect) {
+                            window.location.href = result.redirect;
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        alert('Failed to force logout user.');
+                    }
+                });
+            });
         });
     </script>
 </body>
