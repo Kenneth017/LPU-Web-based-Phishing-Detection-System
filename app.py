@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 from email import policy
 from email import policy
@@ -23,7 +23,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import asyncio
 import asyncio
 import csv
-import datetime
+import datetime as dt
 import extract_msg
 import extract_msg
 import hashlib
@@ -1920,7 +1920,7 @@ async def login():
 
                 # If not logged in or session expired, create new session
                 session_token = str(uuid.uuid4())
-                expiry_time = datetime.now() + timedelta(days=1)  # Set session to expire in 1 day
+                expiry_time = datetime.now() + dt.timedelta(days=1)  # Use dt.timedelta here
                 
                 c.execute("UPDATE users SET session_token = ?, session_expiry = ? WHERE id = ?",
                          (session_token, expiry_time.isoformat(), user['id']))
