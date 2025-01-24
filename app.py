@@ -588,7 +588,7 @@ async def submit_feedback():
         receiver_email = os.getenv('PERSONAL_EMAIL', 'your-personal-email@gmail.com')
         password = os.getenv('APP_EMAIL_PASSWORD', 'your-app-email-password')
 
-        subject = f"PhishGuard Feedback: {feedback_type}"
+        subject = f"Phishing Detection System Feedback: {feedback_type}"
         
         # HTML content
         html_content = f"""
@@ -606,7 +606,7 @@ async def submit_feedback():
             </head>
             <body>
                 <div class="container">
-                    <h1>PhishGuard Feedback Received</h1>
+                    <h1>Phishing Detection System Feedback Received</h1>
                     <div class="feedback-item">
                         <span class="feedback-label">Feedback Type:</span>
                         <span class="feedback-value">{feedback_type}</span>
@@ -1876,7 +1876,7 @@ async def create_user():
                     verification_url = url_for('verify_email', token=token, _external=True)
 
                     # Create email message
-                    subject = 'PhishGuard - Verify Your Email'
+                    subject = 'Phishing Detection System - Verify Your Email'
                     html_content = f"""
                     <html>
                         <head>
@@ -1896,12 +1896,12 @@ async def create_user():
                         </head>
                         <body>
                             <div class="container">
-                                <h2>Welcome to PhishGuard!</h2>
+                                <h2>Welcome to Phishing Detection System!</h2>
                                 <p>Hello {username},</p>
                                 <p>Please verify your email address by clicking the button below:</p>
                                 <a href="{verification_url}" class="button">Verify Email</a>
                                 <p>If you didn't create an account with us, you can safely ignore this email.</p>
-                                <p>Best regards,<br>The PhishGuard Team</p>
+                                <p>Best regards,<br>The Phishing Detection System Team</p>
                             </div>
                         </body>
                     </html>
@@ -1984,7 +1984,7 @@ async def reset_password_request():
                 reset_url = url_for('reset_password', token=token, _external=True)
                 
                 # Create email message
-                subject = 'PhishGuard - Password Reset Request'
+                subject = 'Phishing Detection System - Password Reset Request'
                 html_content = f"""
                 <html>
                     <head>
@@ -2007,12 +2007,12 @@ async def reset_password_request():
                         <div class="container">
                             <h2>Password Reset Request</h2>
                             <p>Hello,</p>
-                            <p>We received a request to reset the password for your PhishGuard account.</p>
+                            <p>We received a request to reset the password for your Phishing Detection System account.</p>
                             <p>To reset your password, click the button below:</p>
                             <a href="{reset_url}" class="button">Reset Password</a>
                             <p>If you didn't request this password reset, you can safely ignore this email.</p>
                             <p class="warning">This password reset link will expire in 1 hour for security reasons.</p>
-                            <p>Best regards,<br>The PhishGuard Team</p>
+                            <p>Best regards,<br>The Phishing Detection System Team</p>
                         </div>
                     </body>
                 </html>
@@ -2185,7 +2185,7 @@ async def admin_initiate_reset(user_id):
         reset_url = url_for('reset_password', token=token, _external=True)
 
         # Create email message
-        subject = 'PhishGuard - Password Reset Initiated by Administrator'
+        subject = 'Phishing Detection System - Password Reset Initiated by Administrator'
         html_content = f"""
         <html>
             <head>
@@ -2208,12 +2208,12 @@ async def admin_initiate_reset(user_id):
                 <div class="container">
                     <h2>Password Reset Request</h2>
                     <p>Hello {user['username']},</p>
-                    <p>An administrator has initiated a password reset for your PhishGuard account.</p>
+                    <p>An administrator has initiated a password reset for your Phishing Detection System account.</p>
                     <p>To set your new password, click the button below:</p>
                     <a href="{reset_url}" class="button">Reset Password</a>
                     <p>If you didn't expect this password reset, please contact the administrator.</p>
                     <p class="warning">This password reset link will expire in 1 hour for security reasons.</p>
-                    <p>Best regards,<br>The PhishGuard Team</p>
+                    <p>Best regards,<br>The Phishing Detection System Team</p>
                 </div>
             </body>
         </html>
