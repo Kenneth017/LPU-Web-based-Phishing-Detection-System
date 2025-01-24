@@ -44,13 +44,8 @@ singapore_tz = pytz.timezone('Asia/Singapore')
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     DB_PATH = '/opt/render/project/src/instance/phishing_history.db'
+    print(f"Running on Render. Using database path: {DB_PATH}")
 else:
-    DB_PATH = 'phishing_history.db'
-
-print(f"Using database path: {DB_PATH}")
-
-else:
-    # Local development
     DB_PATH = 'phishing_history.db'
     print(f"Running locally. Using database path: {DB_PATH}")
 
