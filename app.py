@@ -89,27 +89,22 @@ def init_db():
     conn = get_db_connection()
     c = conn.cursor()
 
-    # Add session_token column to users table if it doesn't exist
-    c.execute("PRAGMA table_info(users)")
-    columns = [column[1] for column in c.fetchall()]
-    if 'session_token' not in columns:
-        c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
-        print("Added session_token column to users table")
-    
-    # Create users table if it doesn't exist with separate username and email fields
+    # Create users table with all necessary columns
     c.execute('''
-    CREATE TABLE IF NOT EXISTS users_new
+    CREATE TABLE IF NOT EXISTS users
     (id INTEGER PRIMARY KEY AUTOINCREMENT,
      username TEXT UNIQUE NOT NULL,
      email TEXT UNIQUE,
      password TEXT NOT NULL,
      is_admin BOOLEAN NOT NULL DEFAULT 0,
-     email_verified BOOLEAN DEFAULT 0)
+     email_verified BOOLEAN DEFAULT 0,
+     session_token TEXT)
     ''')
-    
-    # Check if email_verified column exists, if not add it
+
+    # Check if columns exist, if not add them
     c.execute("PRAGMA table_info(users)")
     columns = [column[1] for column in c.fetchall()]
+    
     if 'email_verified' not in columns:
         try:
             c.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0")
@@ -117,24 +112,12 @@ def init_db():
         except Exception as e:
             print(f"Error adding email_verified column: {e}")
     
-    # Check if old users table exists and migrate data
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-    if c.fetchone():
+    if 'session_token' not in columns:
         try:
-            # Copy existing data
-            c.execute('''
-                INSERT INTO users_new (id, username, password, is_admin)
-                SELECT id, username, password, is_admin FROM users
-            ''')
-            # Drop old table
-            c.execute('DROP TABLE users')
-            # Rename new table
-            c.execute('ALTER TABLE users_new RENAME TO users')
-            print("Migrated users table to include email field")
+            c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
+            print("Added session_token column to users table")
         except Exception as e:
-            print(f"Error migrating users table: {e}")
-    else:
-        c.execute('ALTER TABLE users_new RENAME TO users')
+            print(f"Error adding session_token column: {e}")
 
     # Create or modify analysis_history table
     c.execute('''
@@ -154,7 +137,7 @@ def init_db():
     )
     ''')
 
-    # Check if new columns exist, if not add them
+    # Check if new columns exist in analysis_history, if not add them
     c.execute("PRAGMA table_info(analysis_history)")
     columns = [column[1] for column in c.fetchall()]
     
@@ -171,7 +154,7 @@ def init_db():
     if 'status_code' not in columns:
         c.execute("ALTER TABLE analysis_history ADD COLUMN status_code INTEGER")
 
-    # Create indexes
+    # Create indexes for analysis_history
     c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
@@ -239,8 +222,10 @@ def init_db():
     c.execute("SELECT * FROM users WHERE username = 'admin'")
     if c.fetchone() is None:
         hashed_password = generate_password_hash('admin_password')
-        c.execute("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)",
-                  ('admin', 'admin@example.com', hashed_password, True))
+        c.execute("""
+            INSERT INTO users (username, email, password, is_admin, session_token) 
+            VALUES (?, ?, ?, ?, ?)
+        """, ('admin', 'admin@example.com', hashed_password, True, None))
         print("Admin user created with default password and email. Please change them immediately after first login.")
     else:
         # Update admin email if it's NULL
@@ -269,35 +254,36 @@ init_db()
 def migrate_database():
     conn = get_db_connection()
     c = conn.cursor()
-    
+
     try:
-        # Check if table exists first
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='url_checks'")
+        # Check if users table exists
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         if c.fetchone() is None:
-            # Table doesn't exist, create it
+            # If users table doesn't exist, run init_db to create it
             init_db()
             return
 
-        # Check if new columns exist
-        c.execute("PRAGMA table_info(url_checks)")
+        # Check for and add missing columns
+        c.execute("PRAGMA table_info(users)")
         columns = [column[1] for column in c.fetchall()]
         
-        # Add new columns if they don't exist
-        if 'community_score' not in columns:
-            c.execute('ALTER TABLE url_checks ADD COLUMN community_score TEXT')
-        if 'final_url' not in columns:
-            c.execute('ALTER TABLE url_checks ADD COLUMN final_url TEXT')
-        if 'serving_ip' not in columns:
-            c.execute('ALTER TABLE url_checks ADD COLUMN serving_ip TEXT')
-        if 'vendor_analysis' not in columns:
-            c.execute('ALTER TABLE url_checks ADD COLUMN vendor_analysis TEXT')
+        if 'email_verified' not in columns:
+            c.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0")
+            print("Added email_verified column to users table")
         
+        if 'session_token' not in columns:
+            c.execute("ALTER TABLE users ADD COLUMN session_token TEXT")
+            print("Added session_token column to users table")
+
         conn.commit()
+        print("Database migration completed successfully")
     except Exception as e:
-        logger.error(f"Error during database migration: {str(e)}")
-        raise
+        print(f"Error during database migration: {e}")
     finally:
         conn.close()
+
+# Call migrate_database at app startup
+migrate_database()
 
 def login_required(func):
     @wraps(func)
@@ -2233,5 +2219,6 @@ migrate_database()  # Then migrate if needed
 feedback_handler = FeedbackHandler()
 
 if __name__ == '__main__':
+    migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
