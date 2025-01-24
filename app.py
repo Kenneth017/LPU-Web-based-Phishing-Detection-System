@@ -79,8 +79,8 @@ def convert_to_local_time(timestamp_str):
 def ensure_db_directory():
     db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir)
-        logger.info(f"Created directory for database: {db_dir}")
+        os.makedirs(db_dir, exist_ok=True)
+        print(f"Created directory for database: {db_dir}")
 
 def get_db_connection():
     try:
