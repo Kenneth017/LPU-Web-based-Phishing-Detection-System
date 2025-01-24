@@ -248,26 +248,54 @@ def init_db():
              FOREIGN KEY (user_id) REFERENCES users(id))
         ''')
 
-    # Add or update admin user
-    c.execute("SELECT * FROM users WHERE username = 'admin' OR username = 'admin Admin'")
-    admin_user = c.fetchone()
-    if admin_user is None:
-        hashed_password = generate_password_hash('admin_password')
-        c.execute("""
-            INSERT INTO users (username, email, password, is_admin, session_token) 
-            VALUES (?, ?, ?, ?, ?)
-        """, ('admin', 'admin@example.com', hashed_password, True, None))
-        print("Admin user created with default password and email. Please change them immediately after first login.")
-    else:
-        # Update existing admin user
-        c.execute("""
-            UPDATE users 
-            SET username = 'admin', 
-                email = COALESCE(email, 'admin@example.com'),
-                is_admin = 1
-            WHERE username IN ('admin', 'admin Admin')
-        """)
-        print("Admin user updated.")
+    # Add or update admin user with environment variables
+    admin_username = os.getenv('ADMIN_DEFAULT_USERNAME', 'admin')
+    admin_email = os.getenv('ADMIN_DEFAULT_EMAIL', 'admin@example.com')
+    admin_password = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin_password')
+
+    try:
+        # Check for existing admin user
+        c.execute("SELECT * FROM users WHERE username = ? OR username = 'admin Admin'", (admin_username,))
+        admin_user = c.fetchone()
+        
+        if admin_user is None:
+            # Create new admin user
+            hashed_password = generate_password_hash(admin_password)
+            c.execute("""
+                INSERT INTO users 
+                (username, email, password, is_admin, session_token, session_expiry, email_verified) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (admin_username, admin_email, hashed_password, True, None, None, True))
+            print(f"Admin user '{admin_username}' created successfully. Please change the password after first login.")
+        else:
+            # Update existing admin user if needed
+            if RENDER_EXTERNAL_HOSTNAME:  # Only update password on Render if explicitly set
+                if os.getenv('ADMIN_DEFAULT_PASSWORD'):
+                    hashed_password = generate_password_hash(admin_password)
+                    c.execute("""
+                        UPDATE users 
+                        SET username = ?,
+                            email = ?,
+                            password = ?,
+                            is_admin = 1,
+                            email_verified = 1
+                        WHERE id = ?
+                    """, (admin_username, admin_email, hashed_password, admin_user['id']))
+                    print(f"Admin user '{admin_username}' updated with new credentials.")
+            else:
+                # Just ensure admin privileges and email are set
+                c.execute("""
+                    UPDATE users 
+                    SET username = ?,
+                        email = COALESCE(email, ?),
+                        is_admin = 1,
+                        email_verified = 1
+                    WHERE id = ?
+                """, (admin_username, admin_email, admin_user['id']))
+                print(f"Admin user '{admin_username}' privileges confirmed.")
+    except Exception as e:
+        print(f"Error managing admin user: {e}")
+        logger.error(f"Error managing admin user: {e}")
 
     # Add main_verdict column to analysis_history if it doesn't exist
     c.execute("PRAGMA table_info(analysis_history)")
