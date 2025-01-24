@@ -1905,6 +1905,9 @@ async def logout():
     
     return redirect(url_for('login'))
 
+import secrets
+import string
+
 @app.route('/create_user', methods=['GET', 'POST'])
 @login_required
 async def create_user():
@@ -1916,7 +1919,6 @@ async def create_user():
         form = await request.form
         username = form['username'].strip()
         email = form['email'].strip()
-        password = form['password']
         is_admin = 'is_admin' in form
 
         # Email validation
@@ -1924,10 +1926,8 @@ async def create_user():
             await flash('Valid email address is required.', 'error')
             return await render_template('create_user.html')
 
-        # Password strength validation
-        if len(password) < 8:
-            await flash('Password must be at least 8 characters long.', 'error')
-            return await render_template('create_user.html')
+        # Generate a temporary password
+        temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
 
         conn = get_db_connection()
         c = conn.cursor()
@@ -1937,47 +1937,35 @@ async def create_user():
             if c.fetchone():
                 await flash('Username or email already exists.', 'error')
             else:
-                hashed_password = generate_password_hash(password)
-                # Include email_verified in the INSERT statement
+                hashed_password = generate_password_hash(temp_password)
                 c.execute("""
                     INSERT INTO users 
                     (username, email, password, is_admin, email_verified) 
                     VALUES (?, ?, ?, ?, ?)
-                """, (username, email, hashed_password, is_admin, False))
+                """, (username, email, hashed_password, is_admin, True))
                 conn.commit()
 
-                # Send verification email
+                # Send welcome email
                 try:
-                    # Generate verification token
-                    token = serializer.dumps(email, salt='email-verification-salt')
-                    verification_url = url_for('verify_email', token=token, _external=True)
-
-                    # Create email message
-                    subject = 'Phishing Detection System - Verify Your Email'
+                    subject = 'Welcome to Phishing Detection System'
                     html_content = f"""
                     <html>
                         <head>
                             <style>
                                 body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                                 .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                                .button {{ 
-                                    display: inline-block;
-                                    padding: 10px 20px;
-                                    background-color: #4CAF50;
-                                    color: white;
-                                    text-decoration: none;
-                                    border-radius: 5px;
-                                    margin: 20px 0;
-                                }}
+                                .important {{ color: #ff4444; font-weight: bold; }}
                             </style>
                         </head>
                         <body>
                             <div class="container">
                                 <h2>Welcome to Phishing Detection System!</h2>
                                 <p>Hello {username},</p>
-                                <p>Please verify your email address by clicking the button below:</p>
-                                <a href="{verification_url}" class="button">Verify Email</a>
-                                <p>If you didn't create an account with us, you can safely ignore this email.</p>
+                                <p>Your account has been created successfully. Here are your login credentials:</p>
+                                <p><strong>Username:</strong> {username}</p>
+                                <p><strong>Temporary Password:</strong> {temp_password}</p>
+                                <p class="important">Important: Please log in and change your password immediately by going to your profile settings.</p>
+                                <p>If you have any questions or need assistance, please contact the administrator.</p>
                                 <p>Best regards,<br>The Phishing Detection System Team</p>
                             </div>
                         </body>
@@ -1997,10 +1985,10 @@ async def create_user():
                         os.getenv('APP_EMAIL_PASSWORD'),
                         msg
                     )
-                    await flash('User created successfully! Verification email sent.', 'success')
+                    await flash('User created successfully! Welcome email sent with login credentials.', 'success')
                 except Exception as e:
-                    logger.error(f"Error sending verification email: {str(e)}")
-                    await flash('User created but there was an error sending the verification email.', 'warning')
+                    logger.error(f"Error sending welcome email: {str(e)}")
+                    await flash('User created but there was an error sending the welcome email.', 'warning')
 
         except Exception as e:
             await flash(f'An error occurred: {str(e)}', 'error')
