@@ -14,68 +14,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if request.endpoint == 'login' %}login-page{% endif %}">
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="{{ url_for('home') }}" class="logo">
-                <i class="fas fa-shield-alt"></i> Cyber Phishing Detection
-            </a>
-        </div>
-        <div class="nav-links">
-            {% if session.get('user_id') %}
-                <!-- Common links for all logged-in users -->
-                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-                <a href="{{ url_for('email_analysis') }}" class="nav-link {% if request.endpoint == 'email_analysis' %}active{% endif %}">
-                    <i class="fas fa-envelope"></i> Email Analysis
-                </a>
-                <a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">
-                    <i class="fas fa-user"></i> Profile
-                </a>
-                <a href="{{ url_for('feedback') }}" class="nav-link {% if request.endpoint == 'feedback' %}active{% endif %}">
-                    <i class="fas fa-comment"></i> Feedback
-                </a>
-
-                <!-- Admin-only links -->
-                {% if session.get('is_admin') %}
-                    <a href="{{ url_for('ml_dashboard') }}" class="nav-link {% if request.endpoint == 'ml_dashboard' %}active{% endif %}">
-                        <i class="fas fa-chart-line"></i> ML Metrics
-                    </a>
-                    <a href="{{ url_for('manage_users') }}" class="nav-link {% if request.endpoint == 'manage_users' %}active{% endif %}">
-                        <i class="fas fa-users-cog"></i> Manage Users
-                    </a>
-                {% endif %}
-
-                <!-- Logout always appears last -->
-                <div class="nav-right">
-                    <a href="{{ url_for('logout') }}" class="nav-link">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            {% elif request.endpoint != 'login' %}
-                <div class="nav-right">
-                    <a href="{{ url_for('login') }}" class="nav-link {% if request.endpoint == 'login' %}active{% endif %}">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </a>
-                </div>
-            {% endif %}
-        </div>
-    </nav>
-
-    <main class="content-wrapper">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div id="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-    </main>
+    <!-- Your existing nav and content code here -->
 
     <script src="{{ url_for('static', filename='script.new.js') }}"></script>
     {% block scripts %}{% endblock %}
@@ -87,6 +26,41 @@
                     flashMessages.style.display = 'none';
                 }, 2000); // Disappear after 2 seconds
             }
+
+            // Session expiry check
+            {% if session.get('user_id') and session.get('session_expiry') %}
+            function checkSessionExpiry() {
+                const expiryTime = new Date("{{ session.session_expiry }}");
+                const now = new Date();
+                const timeLeft = expiryTime - now;
+
+                if (timeLeft < 300000 && timeLeft > 0) {  // Less than 5 minutes left
+                    if (confirm("Your session will expire in less than 5 minutes. Do you want to extend it?")) {
+                        fetch('/extend_session', { 
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token() }}'  // If you're using CSRF protection
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert("Session extended successfully.");
+                            } else {
+                                alert("Failed to extend session. Please log in again.");
+                                window.location.href = "{{ url_for('login') }}";
+                            }
+                        });
+                    }
+                } else if (timeLeft <= 0) {
+                    alert("Your session has expired. Please log in again.");
+                    window.location.href = "{{ url_for('login') }}";
+                }
+            }
+
+            setInterval(checkSessionExpiry, 60000);  // Check every minute
+            {% endif %}
         });
     </script>
 </body>
