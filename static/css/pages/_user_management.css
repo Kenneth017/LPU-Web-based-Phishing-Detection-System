@@ -114,24 +114,23 @@
     transform: translateY(-1px);
 }
 
-/* Action Buttons Container */
-.actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+.admin-btn-info {
+    background: linear-gradient(45deg, #17a2b8, #138496);
+    color: white;
 }
 
-.inline-form {
-    display: inline;
+.admin-btn-info:hover {
+    background: linear-gradient(45deg, #138496, #17a2b8);
+    transform: translateY(-1px);
 }
 
-/* Small Button Variant */
-.admin-btn-sm {
-    padding: 6px 12px;
-    font-size: 0.875rem;
+.admin-btn-info:disabled {
+    background: #9ad0d8;
+    cursor: not-allowed;
+    transform: none;
 }
 
-/* Status Indicators */
+/* Status Styles */
 .status-indicator {
     display: inline-block;
     width: 8px;
@@ -140,12 +139,54 @@
     margin-right: 8px;
 }
 
-.status-active {
-    background-color: #00ff9d;
+.status-active, .admin-indicator {
+    background-color: #ffd700;
 }
 
-.status-inactive {
-    background-color: #ff4d4d;
+.admin-badge {
+    background-color: #ffd700;
+    color: #000;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    margin-left: 5px;
+    font-weight: bold;
+}
+
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.status-online {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-offline {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Action Buttons Container */
+.actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.inline-form {
+    display: inline-block;
+    margin-right: 5px;
+}
+
+/* Small Button Variant */
+.admin-btn-sm {
+    padding: 6px 12px;
+    font-size: 0.875rem;
 }
 
 /* Password Field */
@@ -153,6 +194,16 @@
     font-family: monospace;
     letter-spacing: 2px;
     color: rgba(255, 255, 255, 0.7);
+}
+
+/* Animation for Status Changes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
 }
 
 /* Responsive Design */
@@ -167,7 +218,6 @@
         flex-direction: column;
         gap: 5px;
     }
-    
     .admin-btn-sm {
         width: 100%;
         justify-content: center;
@@ -210,44 +260,77 @@
     z-index: 1000;
 }
 
-/* Animation for Status Changes */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* Additional utility classes */
+.text-muted {
+    color: #6c757d;
 }
 
-.fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+/* Ensure consistent spacing for inline forms */
+.inline-form + .inline-form {
+    margin-left: 5px;
 }
 
-.status-badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: bold;
-}
-
-.status-online {
-    background-color: #28a745;
-    color: white;
-}
-
-.status-offline {
-    background-color: #6c757d;
-    color: white;
-}
-
-.admin-btn-info {
-    background-color: #17a2b8;
-    color: white;
-}
-
-.admin-btn-info:hover {
-    background-color: #138496;
-}
-
-.admin-btn-info:disabled {
-    background-color: #9ad0d8;
+/* Improve visibility of disabled buttons */
+.admin-btn:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
+/* Enhance focus states for better accessibility */
+.admin-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Add a subtle transition to status changes */
+.status-badge {
+    transition: background-color 0.3s ease;
+}
+
+/* Improve readability of the admin badge */
+.admin-badge {
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Add a hover effect to table rows for better interactivity */
+.user-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Ensure consistent button sizes */
+.admin-btn-sm {
+    min-width: 80px;
+}
+
+/* Add a subtle border to the table for better definition */
+.user-table {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Improve the appearance of the table header */
+.user-table thead th {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Add a max-width to email column to prevent layout issues with long emails */
+.user-table td:nth-child(2) {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ensure consistent alignment of action buttons */
+.actions {
+    justify-content: flex-end;
+}
+
+/* Add a subtle transition to button hovers */
+.admin-btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.admin-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
