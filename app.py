@@ -1,10 +1,10 @@
-# From imports
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from email import policy
-from email.mime.text import MIMEText
+from email import policy
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.parser import BytesParser
 from email_analysis_ml import EmailPhishingDetector
 from feedback_handler import FeedbackHandler
@@ -13,14 +13,18 @@ from io import StringIO
 from itsdangerous import URLSafeTimedSerializer
 from ml_api import analyze_input 
 from ml_metrics import MLMetricsAnalyzer
-from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash, current_app,websocket
+from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash, current_app
+from quart import request, flash, redirect, url_for, render_template
+from quart import request, jsonify
+from quart import websocket
 from urllib.parse import urlparse
 from utils import setup_logger
 from werkzeug.security import generate_password_hash, check_password_hash
-# Direct imports
+import asyncio
 import asyncio
 import csv
 import datetime
+import extract_msg
 import extract_msg
 import hashlib
 import json
@@ -33,6 +37,7 @@ import stat
 import tempfile
 import time
 import uuid
+
 
 # Set up timezone
 singapore_tz = pytz.timezone('Asia/Singapore')
