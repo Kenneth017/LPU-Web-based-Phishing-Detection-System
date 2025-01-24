@@ -75,6 +75,30 @@ app.secret_key = os.getenv('SECRET_KEY')
 # Set up logger
 logger = setup_logger(__name__)
 
+def cleanup_stale_sessions():
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        current_time = datetime.now().isoformat()
+        
+        # Clear expired sessions
+        c.execute("""
+            UPDATE users 
+            SET session_token = NULL, session_expiry = NULL 
+            WHERE session_expiry < ?
+        """, (current_time,))
+        
+        conn.commit()
+        conn.close()
+        logger.info("Cleaned up stale sessions")
+    except Exception as e:
+        logger.error(f"Error cleaning up stale sessions: {e}")
+
+@app.before_serving
+async def startup():
+    cleanup_stale_sessions()  # Clean up stale sessions on startup
+    await initialize_db_if_needed()
+
 def convert_to_local_time(timestamp_str):
     """Convert UTC timestamp to GMT+8"""
     try:
@@ -1906,24 +1930,36 @@ async def login():
         c = conn.cursor()
         
         try:
+            # Clean up any stale sessions first
+            cleanup_stale_sessions()
+            
             c.execute("SELECT * FROM users WHERE username = ? OR email = ?", 
                      (username_or_email, username_or_email))
             user = c.fetchone()
 
             if user and check_password_hash(user['password'], password):
-                # Check if user is already logged in
-                if user['session_token'] and user['session_expiry']:
-                    expiry_time = datetime.fromisoformat(user['session_expiry'])
-                    if datetime.now() < expiry_time:
-                        await flash('This account is already logged in on another device.', 'error')
-                        return redirect(url_for('login'))
+                # For admin users or users with expired sessions, allow login
+                if not user['is_admin']:
+                    if user['session_token'] and user['session_expiry']:
+                        try:
+                            expiry_time = datetime.fromisoformat(user['session_expiry'])
+                            if datetime.now() < expiry_time:
+                                await flash('This account is already logged in on another device.', 'error')
+                                return redirect(url_for('login'))
+                        except (ValueError, TypeError):
+                            # If there's any error parsing the expiry time, treat it as expired
+                            pass
 
-                # If not logged in or session expired, create new session
+                # Create new session
                 session_token = str(uuid.uuid4())
-                expiry_time = datetime.now() + dt.timedelta(days=1)  # Use dt.timedelta here
+                expiry_time = datetime.now() + dt.timedelta(days=1)
                 
-                c.execute("UPDATE users SET session_token = ?, session_expiry = ? WHERE id = ?",
-                         (session_token, expiry_time.isoformat(), user['id']))
+                c.execute("""
+                    UPDATE users 
+                    SET session_token = ?, 
+                        session_expiry = ? 
+                    WHERE id = ?
+                """, (session_token, expiry_time.isoformat(), user['id']))
                 conn.commit()
                 
                 session['user_id'] = user['id']
