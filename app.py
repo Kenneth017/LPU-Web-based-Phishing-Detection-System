@@ -1,41 +1,37 @@
-import os
-from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash, current_app
-import sqlite3
-import csv
-from io import StringIO
-from functools import wraps
-from utils import setup_logger
-from ml_api import analyze_input 
-from feedback_handler import FeedbackHandler
-import json
-from ml_metrics import MLMetricsAnalyzer
-from quart import request, jsonify
-import datetime
-import time
-from datetime import datetime, timedelta
-import pytz
-from werkzeug.security import generate_password_hash, check_password_hash
-from email_analysis_ml import EmailPhishingDetector
-import extract_msg
-import tempfile
-from email import policy
+# From imports
 from bs4 import BeautifulSoup
-import re
-from urllib.parse import urlparse
-import uuid
-import smtplib
-import asyncio
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+from email import policy
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from quart import websocket
-from email import policy
 from email.parser import BytesParser
+from feedback_handler import FeedbackHandler
+from functools import wraps
+from io import StringIO
+from itsdangerous import URLSafeTimedSerializer
+from ml_api import analyze_input 
+from ml_metrics import MLMetricsAnalyzer
+from quart import Quart, render_template, request, url_for, jsonify, make_response, redirect, session, flash, current_app,websocket
+from urllib.parse import urlparse
+from utils import setup_logger
+from werkzeug.security import generate_password_hash, check_password_hash
+# Direct imports
+import asyncio
+import csv
+import datetime
 import extract_msg
 import hashlib
-from itsdangerous import URLSafeTimedSerializer
-from quart import request, flash, redirect, url_for, render_template
-from dotenv import load_dotenv
-import asyncio
+import json
+import os
+import pytz
+import re
+import smtplib
+import sqlite3
+import stat
+import tempfile
+import time
+import uuid
 
 # Set up timezone
 singapore_tz = pytz.timezone('Asia/Singapore')
@@ -139,10 +135,13 @@ def init_db():
         
         if os.path.exists(db_dir):
             print(f"Directory exists: {db_dir}")
-            # Check directory permissions
-            dir_stat = os.stat(db_dir)
-            print(f"Directory permissions: {stat.filemode(dir_stat.st_mode)}")
-            print(f"Directory owner: {dir_stat.st_uid}, group: {dir_stat.st_gid}")
+            try:
+                # Check directory permissions
+                dir_stat = os.stat(db_dir)
+                print(f"Directory permissions: {stat.filemode(dir_stat.st_mode)}")
+                print(f"Directory owner: {dir_stat.st_uid}, group: {dir_stat.st_gid}")
+            except Exception as e:
+                print(f"Could not check directory permissions: {e}")
             
             # Check if we can list the directory contents
             try:
