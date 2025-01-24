@@ -12,7 +12,7 @@ from ml_metrics import MLMetricsAnalyzer
 from quart import request, jsonify
 import datetime
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
 from email_analysis_ml import EmailPhishingDetector
@@ -118,6 +118,13 @@ def init_db():
             print("Added session_token column to users table")
         except Exception as e:
             print(f"Error adding session_token column: {e}")
+            
+    if 'session_expiry' not in columns:
+        try:
+            c.execute("ALTER TABLE users ADD COLUMN session_expiry TEXT")
+            print("Added session_expiry column to users table")
+        except Exception as e:
+            print(f"Error adding session_expiry column: {e}")
 
     # Create or modify analysis_history table
     c.execute('''
@@ -288,32 +295,56 @@ migrate_database()
 def login_required(func):
     @wraps(func)
     async def decorated_view(*args, **kwargs):
-        if 'user_id' not in session:
+        if 'user_id' not in session or 'session_expiry' not in session:
             return redirect(url_for('login', next=request.url))
         
-        # Verify session token
         try:
+            expiry_time = datetime.fromisoformat(session['session_expiry'])
+            
+            if datetime.now() > expiry_time:
+                # Session has expired
+                session.clear()
+                await flash('Your session has expired. Please login again.', 'error')
+                return redirect(url_for('login', next=request.url))
+            
+            # Session is still valid, extend its expiry time
+            new_expiry = datetime.now() + timedelta(days=1)
+            session['session_expiry'] = new_expiry.isoformat()
+            
             conn = get_db_connection()
             c = conn.cursor()
-            c.execute("SELECT session_token FROM users WHERE id = ?", 
-                     (session['user_id'],))
-            user = c.fetchone()
+            c.execute("UPDATE users SET session_expiry = ? WHERE id = ?", 
+                     (new_expiry.isoformat(), session['user_id']))
+            conn.commit()
             conn.close()
-            
-            if not user or user['session_token'] != session.get('session_token'):
-                # Session is invalid, clear it
-                session.clear()
-                await flash('Your session has expired or been invalidated. Please login again.', 'error')
-                return redirect(url_for('login', next=request.url))
                 
         except Exception as e:
-            logger.error(f"Error checking session token: {str(e)}")
+            logger.error(f"Error checking session: {str(e)}")
             session.clear()
             await flash('An error occurred. Please login again.', 'error')
             return redirect(url_for('login', next=request.url))
             
         return await func(*args, **kwargs)
     return decorated_view
+
+@app.route('/extend_session', methods=['POST'])
+@login_required
+async def extend_session():
+    try:
+        new_expiry = datetime.now() + timedelta(days=1)
+        session['session_expiry'] = new_expiry.isoformat()
+        
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE users SET session_expiry = ? WHERE id = ?", 
+                 (new_expiry.isoformat(), session['user_id']))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error extending session: {str(e)}")
+        return jsonify({'success': False})
 
 @app.route('/force_logout/<int:user_id>', methods=['POST'])
 @login_required
@@ -325,7 +356,7 @@ async def force_logout(user_id):
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("UPDATE users SET session_token = NULL WHERE id = ?", (user_id,))
+        c.execute("UPDATE users SET session_token = NULL, session_expiry = NULL WHERE id = ?", (user_id,))
         conn.commit()
         conn.close()
         
@@ -1736,30 +1767,23 @@ async def login():
         c = conn.cursor()
         
         try:
-            # Check if user exists and password is correct
             c.execute("SELECT * FROM users WHERE username = ? OR email = ?", 
                      (username_or_email, username_or_email))
             user = c.fetchone()
 
             if user and check_password_hash(user['password'], password):
-                # Check if user already has an active session
-                if user['session_token']:
-                    await flash('This account is already logged in on another device.', 'error')
-                    return await render_template('login.html')
-                
-                # Generate new session token
                 session_token = str(uuid.uuid4())
+                expiry_time = datetime.now() + timedelta(days=1)  # Set session to expire in 1 day
                 
-                # Update user's session token in database
-                c.execute("UPDATE users SET session_token = ? WHERE id = ?",
-                         (session_token, user['id']))
+                c.execute("UPDATE users SET session_token = ?, session_expiry = ? WHERE id = ?",
+                         (session_token, expiry_time.isoformat(), user['id']))
                 conn.commit()
                 
-                # Store session information
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 session['is_admin'] = user['is_admin']
                 session['session_token'] = session_token
+                session['session_expiry'] = expiry_time.isoformat()
                 
                 await flash('Login successful!', 'success')
                 return redirect(url_for('home'))
@@ -1774,21 +1798,14 @@ async def login():
 @login_required
 async def logout():
     try:
-        # Clear session token from database
-        if 'user_id' in session:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("UPDATE users SET session_token = NULL WHERE id = ?",
-                     (session['user_id'],))
-            conn.commit()
-            conn.close()
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("UPDATE users SET session_token = NULL, session_expiry = NULL WHERE id = ?",
+                 (session['user_id'],))
+        conn.commit()
+        conn.close()
         
-        # Clear session data
-        session.pop('user_id', None)
-        session.pop('username', None)
-        session.pop('is_admin', None)
-        session.pop('session_token', None)
-        
+        session.clear()
         await flash('You have been successfully logged out.', 'success')
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
