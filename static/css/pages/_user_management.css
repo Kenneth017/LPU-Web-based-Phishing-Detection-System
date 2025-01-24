@@ -220,4 +220,34 @@
     animation: fadeIn 0.3s ease-in-out;
 }
 
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.status-online {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-offline {
+    background-color: #6c757d;
+    color: white;
+}
+
+.admin-btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.admin-btn-info:hover {
+    background-color: #138496;
+}
+
+.admin-btn-info:disabled {
+    background-color: #9ad0d8;
+    cursor: not-allowed;
+}
 
