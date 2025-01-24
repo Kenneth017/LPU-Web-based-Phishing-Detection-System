@@ -91,16 +91,18 @@ def get_db_connection():
         logger.error(f"Database connection error: {str(e)}")
         raise
 
-# Add this function to initialize the database if it doesn't exist
-def initialize_db_if_needed():
+async def initialize_db_if_needed():
     if not os.path.exists(DB_PATH):
         logger.info("Database does not exist. Initializing...")
-        with app.app_context():
+        try:
             init_db()
-        logger.info("Database initialized successfully.")
+            logger.info("Database initialized successfully.")
+        except Exception as e:
+            logger.error(f"Error initializing database: {str(e)}")
 
-# Call this function after your app initialization
-initialize_db_if_needed()
+@app.before_serving
+async def startup():
+    await initialize_db_if_needed()
 
 def init_db():
     # Ensure the directory exists
