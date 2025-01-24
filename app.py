@@ -225,9 +225,10 @@ def init_db():
              FOREIGN KEY (user_id) REFERENCES users(id))
         ''')
 
-    # Add admin user if not exists
-    c.execute("SELECT * FROM users WHERE username = 'admin'")
-    if c.fetchone() is None:
+    # Add or update admin user
+    c.execute("SELECT * FROM users WHERE username = 'admin' OR username = 'admin Admin'")
+    admin_user = c.fetchone()
+    if admin_user is None:
         hashed_password = generate_password_hash('admin_password')
         c.execute("""
             INSERT INTO users (username, email, password, is_admin, session_token) 
@@ -235,9 +236,15 @@ def init_db():
         """, ('admin', 'admin@example.com', hashed_password, True, None))
         print("Admin user created with default password and email. Please change them immediately after first login.")
     else:
-        # Update admin email if it's NULL
-        c.execute("UPDATE users SET email = ? WHERE username = ? AND email IS NULL",
-                 ('admin@example.com', 'admin'))
+        # Update existing admin user
+        c.execute("""
+            UPDATE users 
+            SET username = 'admin', 
+                email = COALESCE(email, 'admin@example.com'),
+                is_admin = 1
+            WHERE username IN ('admin', 'admin Admin')
+        """)
+        print("Admin user updated.")
 
     # Add main_verdict column to analysis_history if it doesn't exist
     c.execute("PRAGMA table_info(analysis_history)")
@@ -255,8 +262,21 @@ def init_db():
     conn.close()
     print("Database initialized successfully")
 
+def update_admin_username():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET username = 'admin' WHERE username = 'admin Admin'")
+    affected_rows = c.rowcount
+    conn.commit()
+    conn.close()
+    if affected_rows > 0:
+        print("Admin username updated.")
+    else:
+        print("No admin username update needed.")
+
 # Call init_db when your app starts
 init_db()
+update_admin_username()
 
 def migrate_database():
     conn = get_db_connection()
