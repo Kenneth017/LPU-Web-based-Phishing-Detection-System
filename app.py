@@ -6,6 +6,7 @@ from email import policy
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.parser import BytesParser
+from email_analysis_ml import EmailPhishingDetector
 from feedback_handler import FeedbackHandler
 from functools import wraps
 from io import StringIO
