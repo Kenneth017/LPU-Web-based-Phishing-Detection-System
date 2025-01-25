@@ -96,6 +96,7 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log("Plotly available:", typeof Plotly !== 'undefined');
         // Store the chart data globally so it's accessible for the modal
         let chartData = {
             rocCurve: null,
@@ -313,9 +314,11 @@
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
             const chartType = card.querySelector('.chart-content').id;
+            console.log("Chart data:", chartData[chartType]);
             
             modalTitle.textContent = title;
             modal.style.display = "block";
+            console.log("Modal style:", modal.style.display);
             
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
