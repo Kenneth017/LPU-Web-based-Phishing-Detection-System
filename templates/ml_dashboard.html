@@ -96,6 +96,7 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded");
         console.log("Plotly available:", typeof Plotly !== 'undefined');
         // Store the chart data globally so it's accessible for the modal
         let chartData = {
@@ -314,11 +315,12 @@
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
             const chartType = card.querySelector('.chart-content').id;
-            console.log("Chart data:", chartData[chartType]);
             
+            console.log("Chart type:", chartType);
+            console.log("Chart data available:", chartData[chartType] !== undefined);
+    
             modalTitle.textContent = title;
             modal.style.display = "block";
-            console.log("Modal style:", modal.style.display);
             
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
@@ -329,8 +331,8 @@
             const modalLayout = {
                 ...chartData[chartType].layout,
                 autosize: true,
-                height: modalContent.clientHeight - 60,
-                width: modalContent.clientWidth - 40,
+                height: modalContent.clientHeight,
+                width: modalContent.clientWidth,
                 margin: {
                     l: 50,
                     r: 30,
@@ -339,19 +341,28 @@
                 }
             };
             
+            console.log("Plotting chart in modal");
             Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
+            console.log("Chart plotted");
         }
     
         // Modal event listeners
-        closeBtn.onclick = () => modal.style.display = "none";
+        closeBtn.onclick = () => {
+            console.log("Close button clicked");
+            modal.style.display = "none";
+        };
         window.onclick = (event) => {
-            if (event.target == modal) modal.style.display = "none";
+            if (event.target == modal) {
+                console.log("Clicked outside modal");
+                modal.style.display = "none";
+            }
         };
     
         // Maximize button listeners
         document.querySelectorAll('.maximize-btn').forEach(btn => {
-            console.log("Attaching event listener to:", btn);
+            console.log("Attaching event listener to maximize button");
             btn.addEventListener('click', function(e) {
+                console.log("Maximize button clicked");
                 e.preventDefault();
                 e.stopPropagation();
                 maximizeChart(this.closest('.chart-card').id);
