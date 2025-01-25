@@ -318,175 +318,176 @@
             document.body.removeChild(link);
         }
 
-        // Add event listener for export button
-        document.getElementById('exportAllData').addEventListener('click', exportAllData);
-    
-        // Modal functionality
-        function openModal(cardId) {
-            const modal = document.getElementById('chartModal');
-            const modalTitle = document.getElementById('modalChartTitle');
-            const modalContent = document.getElementById('modalChartContent');
-            
-            const card = document.getElementById(cardId);
-            const title = card.querySelector('h3').textContent;
-            const chartType = card.querySelector('.chart-content').id;
-            
-            modalTitle.textContent = title;
-            modal.style.display = "block";
-            
-            // Clear previous content
-            modalContent.innerHTML = '';
-            
-            // Create a new div for the chart
-            const newChartDiv = document.createElement('div');
-            newChartDiv.style.width = '100%';
-            newChartDiv.style.height = '100%';
-            modalContent.appendChild(newChartDiv);
+            // Add event listener for export button
+            document.getElementById('exportAllData').addEventListener('click', exportAllData);
         
-            // Wait for the modal to be fully visible before plotting
-            setTimeout(() => {
-                // Create a new layout for the modal with adjusted dimensions
-                const modalLayout = {
-                    ...chartData[chartType].layout,
-                    height: modalContent.clientHeight,
-                    width: modalContent.clientWidth,
-                    autosize: true,
-                    margin: {
-                        l: 50,
-                        r: 30,
-                        t: 30,
-                        b: 50
-                    }
-                };
-        
-                // Plot the chart in the modal
-                Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
-                    ...defaultConfig,
-                    responsive: true,
-                    displayModeBar: true
-                }).then(() => {
-                    // Trigger a resize after plotting
-                    Plotly.Plots.resize(newChartDiv);
-                });
-            }, 100);
-        }
-        
-        // Event listeners for modal
-        const modal = document.getElementById('chartModal');
-        const closeBtn = modal.querySelector('.close');
-        
-        closeBtn.onclick = function() {
-            modal.style.display = "none";
-        }
-        
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
-        
-        // Add keyboard event listener for Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape' && modal.style.display === 'block') {
-                modal.style.display = "none";
-            }
-        });
-        
-        // Maximize button listeners
-        document.querySelectorAll('.maximize-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const cardId = this.closest('.chart-card').id;
-                openModal(cardId);
-            });
-        });
-        
-        // Window resize handler with debouncing
-        let resizeTimeout;
-        window.addEventListener('resize', function() {
-            // Clear the previous timeout
-            clearTimeout(resizeTimeout);
-            
-            // Set a new timeout
-            resizeTimeout = setTimeout(function() {
-                // Resize main charts
-                document.querySelectorAll('.chart-content').forEach(chart => {
-                    const layout = {
-                        'width': chart.clientWidth,
-                        'height': chart.clientHeight,
-                        'autosize': true
-                    };
-                    
-                    Plotly.relayout(chart, layout).catch(err => {
-                        console.error('Error resizing chart:', err);
-                    });
-                });
+            // Modal functionality
+            function openModal(cardId) {
+                const modal = document.getElementById('chartModal');
+                const modalTitle = document.getElementById('modalChartTitle');
+                const modalContent = document.getElementById('modalChartContent');
                 
-                // Resize modal chart if modal is open
-                const modalChart = document.querySelector('#modalChartContent > div');
-                if (modalChart && modal.style.display === 'block') {
+                const card = document.getElementById(cardId);
+                const title = card.querySelector('h3').textContent;
+                const chartType = card.querySelector('.chart-content').id;
+                
+                modalTitle.textContent = title;
+                modal.style.display = "block";
+                
+                // Clear previous content
+                modalContent.innerHTML = '';
+                
+                // Create a new div for the chart
+                const newChartDiv = document.createElement('div');
+                newChartDiv.style.width = '100%';
+                newChartDiv.style.height = '100%';
+                modalContent.appendChild(newChartDiv);
+            
+                // Wait for the modal to be fully visible before plotting
+                setTimeout(() => {
+                    // Create a new layout for the modal with adjusted dimensions
                     const modalLayout = {
-                        'width': modalChart.clientWidth,
-                        'height': modalChart.clientHeight,
-                        'autosize': true
+                        ...chartData[chartType].layout,
+                        height: modalContent.clientHeight,
+                        width: modalContent.clientWidth,
+                        autosize: true,
+                        margin: {
+                            l: 50,
+                            r: 30,
+                            t: 30,
+                            b: 50
+                        }
                     };
-                    
-                    Plotly.relayout(modalChart, modalLayout).catch(err => {
-                        console.error('Error resizing modal chart:', err);
+            
+                    // Plot the chart in the modal
+                    Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
+                        ...defaultConfig,
+                        responsive: true,
+                        displayModeBar: true
+                    }).then(() => {
+                        // Trigger a resize after plotting
+                        Plotly.Plots.resize(newChartDiv);
                     });
+                }, 100);
+            }
+            
+            // Event listeners for modal
+            const modal = document.getElementById('chartModal');
+            const closeBtn = modal.querySelector('.close');
+            
+            closeBtn.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
                 }
-            }, 250); // Wait for 250ms after the last resize event
-        });
-    
-        // Add resize observer for more reliable size detection
-        const resizeObserver = new ResizeObserver(entries => {
-            entries.forEach(entry => {
-                const chart = entry.target;
-                if (chart.children.length > 0) {
-                    Plotly.relayout(chart, {
-                        'width': entry.contentRect.width,
-                        'height': entry.contentRect.height,
-                        'autosize': true
-                    }).catch(err => {
-                        console.error('Error in resize observer:', err);
+            }
+            
+            // Add keyboard event listener for Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && modal.style.display === 'block') {
+                    modal.style.display = "none";
+                }
+            });
+            
+            // Maximize button listeners
+            document.querySelectorAll('.maximize-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const cardId = this.closest('.chart-card').id;
+                    openModal(cardId);
+                });
+            });
+            
+            // Window resize handler with debouncing
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                // Clear the previous timeout
+                clearTimeout(resizeTimeout);
+                
+                // Set a new timeout
+                resizeTimeout = setTimeout(function() {
+                    // Resize main charts
+                    document.querySelectorAll('.chart-content').forEach(chart => {
+                        const layout = {
+                            'width': chart.clientWidth,
+                            'height': chart.clientHeight,
+                            'autosize': true
+                        };
+                        
+                        Plotly.relayout(chart, layout).catch(err => {
+                            console.error('Error resizing chart:', err);
+                        });
+                    });
+                    
+                    // Resize modal chart if modal is open
+                    const modalChart = document.querySelector('#modalChartContent > div');
+                    if (modalChart && modal.style.display === 'block') {
+                        const modalLayout = {
+                            'width': modalChart.clientWidth,
+                            'height': modalChart.clientHeight,
+                            'autosize': true
+                        };
+                        
+                        Plotly.relayout(modalChart, modalLayout).catch(err => {
+                            console.error('Error resizing modal chart:', err);
+                        });
+                    }
+                }, 250); // Wait for 250ms after the last resize event
+            });
+        
+            // Add resize observer for more reliable size detection
+            const resizeObserver = new ResizeObserver(entries => {
+                entries.forEach(entry => {
+                    const chart = entry.target;
+                    if (chart.children.length > 0) {
+                        Plotly.relayout(chart, {
+                            'width': entry.contentRect.width,
+                            'height': entry.contentRect.height,
+                            'autosize': true
+                        }).catch(err => {
+                            console.error('Error in resize observer:', err);
+                        });
+                    }
+                });
+            });
+        
+            // Observe all chart containers
+            document.querySelectorAll('.chart-content').forEach(chart => {
+                resizeObserver.observe(chart);
+            });
+        
+            // Update charts when tab becomes visible
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    document.querySelectorAll('.chart-content').forEach(chart => {
+                        Plotly.relayout(chart, {
+                            'width': chart.clientWidth,
+                            'height': chart.clientHeight,
+                            'autosize': true
+                        }).catch(err => {
+                            console.error('Error updating chart on visibility change:', err);
+                        });
                     });
                 }
             });
-        });
-    
-        // Observe all chart containers
-        document.querySelectorAll('.chart-content').forEach(chart => {
-            resizeObserver.observe(chart);
-        });
-    
-        // Update charts when tab becomes visible
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
+        
+            // Function to force resize all charts
+            function forceResizeAllCharts() {
                 document.querySelectorAll('.chart-content').forEach(chart => {
                     Plotly.relayout(chart, {
                         'width': chart.clientWidth,
                         'height': chart.clientHeight,
                         'autosize': true
                     }).catch(err => {
-                        console.error('Error updating chart on visibility change:', err);
+                        console.error('Error in force resize:', err);
                     });
                 });
             }
         });
-    
-        // Function to force resize all charts
-        function forceResizeAllCharts() {
-            document.querySelectorAll('.chart-content').forEach(chart => {
-                Plotly.relayout(chart, {
-                    'width': chart.clientWidth,
-                    'height': chart.clientHeight,
-                    'autosize': true
-                }).catch(err => {
-                    console.error('Error in force resize:', err);
-                });
-            });
-        }
-    });
+    }
 </script>
 {% endblock %}
