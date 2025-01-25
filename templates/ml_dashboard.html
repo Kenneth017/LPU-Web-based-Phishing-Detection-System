@@ -247,49 +247,49 @@
             // Add basic metrics
             csvContent += "Basic Metrics\n";
             csvContent += "Metric,Value\n";
-            csvContent += `Total Checks,${{{ basic_metrics.total_checks }}}\n`;
-            csvContent += `Detection Rate,${{{ "%.2f"|format(basic_metrics.detection_rate * 100) }}}\n`;
-            csvContent += `Phishing Detected,${{{ basic_metrics.phishing_detected }}}\n\n`;
-
+            csvContent += "Total Checks," + "{{ basic_metrics.total_checks }}" + "\n";
+            csvContent += "Detection Rate," + "{{ '%.2f'|format(basic_metrics.detection_rate * 100) }}" + "\n";
+            csvContent += "Phishing Detected," + "{{ basic_metrics.phishing_detected }}" + "\n\n";
+        
             // Add ROC Curve data
             csvContent += "ROC Curve Data\n";
             csvContent += "False Positive Rate,True Positive Rate\n";
             chartData.rocCurve.data[0].x.forEach((x, i) => {
-                csvContent += `${x},${chartData.rocCurve.data[0].y[i]}\n`;
+                csvContent += x + "," + chartData.rocCurve.data[0].y[i] + "\n";
             });
             csvContent += "\n";
-
+        
             // Add Precision-Recall data
             csvContent += "Precision-Recall Curve Data\n";
             csvContent += "Recall,Precision\n";
             chartData.prCurve.data[0].x.forEach((x, i) => {
-                csvContent += `${x},${chartData.prCurve.data[0].y[i]}\n`;
+                csvContent += x + "," + chartData.prCurve.data[0].y[i] + "\n";
             });
             csvContent += "\n";
-
+        
             // Add Feature Importance data
             csvContent += "Feature Importance Analysis\n";
             csvContent += "Feature,Importance Score\n";
             chartData.featureImportance.data[0].y.forEach((feature, i) => {
-                csvContent += `${feature},${chartData.featureImportance.data[0].x[i]}\n`;
+                csvContent += feature + "," + chartData.featureImportance.data[0].x[i] + "\n";
             });
             csvContent += "\n";
-
+        
             // Add Model Evolution data
             csvContent += "Model Performance Evolution\n";
             csvContent += "Date,Accuracy\n";
             chartData.modelEvolution.data[0].x.forEach((date, i) => {
-                csvContent += `${date},${chartData.modelEvolution.data[0].y[i]}\n`;
+                csvContent += date + "," + chartData.modelEvolution.data[0].y[i] + "\n";
             });
             csvContent += "\n";
-
+        
             // Add Vendor Agreement data
             csvContent += "Vendor Agreement Analysis\n";
             csvContent += "Category,Percentage\n";
             chartData.vendorAgreement.data[0].labels.forEach((label, i) => {
-                csvContent += `${label},${chartData.vendorAgreement.data[0].values[i]}\n`;
+                csvContent += label + "," + chartData.vendorAgreement.data[0].values[i] + "\n";
             });
-
+        
             // Create and trigger download
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
