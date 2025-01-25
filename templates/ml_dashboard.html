@@ -105,7 +105,22 @@
             modelEvolution: null,
             vendorAgreement: null
         };
-
+    
+        // Add default configuration for all charts
+        const defaultConfig = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            toImageButtonOptions: {
+                format: 'png',
+                filename: 'chart',
+                height: 500,
+                width: 700,
+                scale: 2
+            }
+        };
+    
         // Initialize main charts
         function initializeCharts() {
             // ROC Curve
@@ -130,8 +145,8 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout);
-
+            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout, defaultConfig);
+    
             // Precision-Recall Curve
             const prData = {{ performance_graphs.pr_curve|tojson }};
             if (prData && prData.precision && prData.recall) {
@@ -156,9 +171,9 @@
                         font: { color: '#FFFFFF' }
                     }
                 };
-                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout);
+                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout, defaultConfig);
             }
-
+    
             // Feature Importance
             const featureData = {{ feature_importance|tojson }};
             const featureImportanceData = [];
@@ -192,7 +207,7 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
+            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout, defaultConfig);
 
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
@@ -215,8 +230,8 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
-
+            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout, defaultConfig);
+    
             // Vendor Agreement
             const vendorData = {{ vendor_agreement|tojson }};
             chartData.vendorAgreement = {
@@ -234,12 +249,15 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
+            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout, defaultConfig);
+    
+            // Add load event listener for initial sizing
+            window.addEventListener('load', forceResizeAllCharts);
         }
-
+    
         // Initialize main charts
         initializeCharts();
-
+    
         // Export all data function
         function exportAllData() {
             let csvContent = "data:text/csv;charset=utf-8,";
@@ -302,7 +320,7 @@
 
         // Add event listener for export button
         document.getElementById('exportAllData').addEventListener('click', exportAllData);
-
+    
         // Modal functionality
         function openModal(cardId) {
             const modal = document.getElementById('chartModal');
@@ -343,6 +361,7 @@
         
                 // Plot the chart in the modal
                 Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
+                    ...defaultConfig,
                     responsive: true,
                     displayModeBar: true
                 }).then(() => {
@@ -383,25 +402,91 @@
             });
         });
         
-        // Window resize handler
+        // Window resize handler with debouncing
+        let resizeTimeout;
         window.addEventListener('resize', function() {
-            // Resize main charts
-            document.querySelectorAll('.chart-content').forEach(chart => {
-                Plotly.relayout(chart, {
-                    'width': chart.clientWidth,
-                    'height': chart.clientHeight
-                });
-            });
+            // Clear the previous timeout
+            clearTimeout(resizeTimeout);
             
-            // Resize modal chart if modal is open
-            const modalChart = document.querySelector('#modalChartContent > div');
-            if (modalChart && modal.style.display === 'block') {
-                Plotly.relayout(modalChart, {
-                    'width': modalChart.clientWidth,
-                    'height': modalChart.clientHeight
+            // Set a new timeout
+            resizeTimeout = setTimeout(function() {
+                // Resize main charts
+                document.querySelectorAll('.chart-content').forEach(chart => {
+                    const layout = {
+                        'width': chart.clientWidth,
+                        'height': chart.clientHeight,
+                        'autosize': true
+                    };
+                    
+                    Plotly.relayout(chart, layout).catch(err => {
+                        console.error('Error resizing chart:', err);
+                    });
+                });
+                
+                // Resize modal chart if modal is open
+                const modalChart = document.querySelector('#modalChartContent > div');
+                if (modalChart && modal.style.display === 'block') {
+                    const modalLayout = {
+                        'width': modalChart.clientWidth,
+                        'height': modalChart.clientHeight,
+                        'autosize': true
+                    };
+                    
+                    Plotly.relayout(modalChart, modalLayout).catch(err => {
+                        console.error('Error resizing modal chart:', err);
+                    });
+                }
+            }, 250); // Wait for 250ms after the last resize event
+        });
+    
+        // Add resize observer for more reliable size detection
+        const resizeObserver = new ResizeObserver(entries => {
+            entries.forEach(entry => {
+                const chart = entry.target;
+                if (chart.children.length > 0) {
+                    Plotly.relayout(chart, {
+                        'width': entry.contentRect.width,
+                        'height': entry.contentRect.height,
+                        'autosize': true
+                    }).catch(err => {
+                        console.error('Error in resize observer:', err);
+                    });
+                }
+            });
+        });
+    
+        // Observe all chart containers
+        document.querySelectorAll('.chart-content').forEach(chart => {
+            resizeObserver.observe(chart);
+        });
+    
+        // Update charts when tab becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                document.querySelectorAll('.chart-content').forEach(chart => {
+                    Plotly.relayout(chart, {
+                        'width': chart.clientWidth,
+                        'height': chart.clientHeight,
+                        'autosize': true
+                    }).catch(err => {
+                        console.error('Error updating chart on visibility change:', err);
+                    });
                 });
             }
         });
+    
+        // Function to force resize all charts
+        function forceResizeAllCharts() {
+            document.querySelectorAll('.chart-content').forEach(chart => {
+                Plotly.relayout(chart, {
+                    'width': chart.clientWidth,
+                    'height': chart.clientHeight,
+                    'autosize': true
+                }).catch(err => {
+                    console.error('Error in force resize:', err);
+                });
+            });
+        }
     });
 </script>
 {% endblock %}
