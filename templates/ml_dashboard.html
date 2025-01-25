@@ -186,7 +186,11 @@
                         font: { color: '#FFFFFF' }
                     }
                 };
-                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout, defaultConfig);
+                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout, {
+                    ...defaultConfig,
+                    modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
+                    displayModeBar: 'hover'
+                });
             }
     
             // Feature Importance
@@ -222,8 +226,12 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout, defaultConfig);
-
+            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout, {
+                ...defaultConfig,
+                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
+                displayModeBar: 'hover'
+            });
+    
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
             chartData.modelEvolution = {
@@ -245,7 +253,11 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout, defaultConfig);
+            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout, {
+                ...defaultConfig,
+                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
+                displayModeBar: 'hover'
+            });
     
             // Vendor Agreement
             const vendorData = {{ vendor_agreement|tojson }};
@@ -264,10 +276,11 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout, defaultConfig);
-    
-            // Add load event listener for initial sizing
-            window.addEventListener('load', forceResizeAllCharts);
+            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout, {
+                ...defaultConfig,
+                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
+                displayModeBar: 'hover'
+            });
         }
     
         // Initialize main charts
@@ -362,6 +375,8 @@
                 const modalLayout = {
                     ...chartData[chartType].layout,
                     autosize: true,
+                    height: modalContent.clientHeight,
+                    width: modalContent.clientWidth,
                     margin: { l: 50, r: 30, t: 30, b: 50 },
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
@@ -370,17 +385,31 @@
             
                 // Plot the chart in the modal
                 Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
-                    ...defaultConfig,
-                    modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d'],
-                    displayModeBar: 'hover'
+                    responsive: true,
+                    displayModeBar: 'hover',
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                    displaylogo: false
                 }).then(() => {
                     // Trigger a resize after plotting
                     Plotly.Plots.resize(newChartDiv);
                 });
             
                 // Add event listener for window resize
-                window.addEventListener('resize', function() {
-                    Plotly.Plots.resize(newChartDiv);
+                function resizeChart() {
+                    Plotly.relayout(newChartDiv, {
+                        width: modalContent.clientWidth,
+                        height: modalContent.clientHeight
+                    });
+                }
+            
+                window.addEventListener('resize', resizeChart);
+            
+                // Remove event listener when modal is closed
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        window.removeEventListener('resize', resizeChart);
+                        modal.style.display = "none";
+                    }
                 });
             }
             
@@ -390,12 +419,6 @@
             
             closeBtn.onclick = function() {
                 modal.style.display = "none";
-            }
-            
-            window.onclick = function(event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                }
             }
             
             // Add keyboard event listener for Escape key
