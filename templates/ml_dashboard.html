@@ -315,7 +315,7 @@
             const chartDiv = card.querySelector('.chart-content');
             
             modalTitle.textContent = title;
-            modal.style.display = "flex";
+            modal.style.display = "block";
             
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
@@ -323,19 +323,18 @@
             modalContent.innerHTML = '';
             modalContent.appendChild(newChartDiv);
             
-            // Get the chart type from the chart div id
             const chartType = chartDiv.id;
             
-            // Create a new layout for the modal with increased height
             const modalLayout = {
                 ...chartData[chartType].layout,
+                autosize: true,
                 height: modalContent.clientHeight,
-                width: modalContent.clientWidth,
-                autosize: true
+                width: modalContent.clientWidth
             };
             
-            // Plot the chart in the modal
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout).then(() => {
+                Plotly.Plots.resize(newChartDiv);
+            });
         }
     
         closeBtn.onclick = function() {
@@ -364,8 +363,7 @@
                 Plotly.Plots.resize(chart);
             });
             
-            // Resize modal chart if modal is open
-            if (modal.style.display === "flex") {
+            if (modal.style.display === "block") {
                 const modalChart = modalContent.querySelector('div');
                 if (modalChart) {
                     Plotly.Plots.resize(modalChart);
