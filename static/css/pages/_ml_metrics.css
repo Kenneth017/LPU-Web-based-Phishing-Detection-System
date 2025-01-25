@@ -58,22 +58,25 @@
     gap: 1rem;
 }
 
-.metric-card {
-    flex: 1;
+.metric-card, .chart-card {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     padding: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.metric-card {
+    flex: 1;
     text-align: center;
-    transition: transform 0.3s ease;
 }
 
 .metric-card:hover {
     transform: translateY(-5px);
 }
 
-.metric-card h3 {
-    font-size: 0.8rem;
+.metric-card h3, .chart-card h3 {
+    font-size: 0.9rem;
     margin: 0 0 0.25rem 0;
     color: var(--text-color-secondary);
 }
@@ -87,13 +90,8 @@
 
 /* Chart cards */
 .chart-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 0.5rem;
     display: flex;
     flex-direction: column;
-    transition: box-shadow 0.3s ease;
 }
 
 .chart-card:hover {
@@ -107,23 +105,12 @@
     margin-bottom: 0.5rem;
 }
 
-.chart-card h3 {
-    font-size: 0.9rem;
-    margin: 0;
-    color: var(--text-color);
-}
-
 .chart-content {
     flex: 1;
-    min-height: 0; /* Added to fix chart scaling */
+    min-height: 0;
 }
 
 /* Chart actions */
-.chart-actions {
-    display: flex;
-    align-items: center;
-}
-
 .maximize-btn {
     background: none;
     border: none;
@@ -242,7 +229,6 @@
 
     .metric-cards {
         flex-direction: column;
-        gap: 0.5rem;
     }
 
     .chart-card {
@@ -268,11 +254,7 @@
         overflow: visible;
     }
 
-    .export-btn {
-        display: none;
-    }
-
-    .maximize-btn {
+    .export-btn, .maximize-btn {
         display: none;
     }
 
