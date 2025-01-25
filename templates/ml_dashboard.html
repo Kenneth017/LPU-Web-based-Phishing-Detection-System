@@ -311,43 +311,68 @@
             
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
-            const chartDiv = card.querySelector('.chart-content');
+            const chartType = card.querySelector('.chart-content').id;
             
             modalTitle.textContent = title;
             modal.style.display = "block";
             
+            // Clear previous content
             modalContent.innerHTML = '';
             
+            // Create a new div for the chart
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
-            newChartDiv.style.height = '80vh';
+            newChartDiv.style.height = '100%';
             modalContent.appendChild(newChartDiv);
-            
-            const chartType = chartDiv.id;
-            
-            const modalLayout = {
-                ...chartData[chartType].layout,
-                height: newChartDiv.clientHeight,
-                width: newChartDiv.clientWidth
-            };
-            
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
+        
+            // Wait for the modal to be fully visible before plotting
+            setTimeout(() => {
+                // Create a new layout for the modal with adjusted dimensions
+                const modalLayout = {
+                    ...chartData[chartType].layout,
+                    height: modalContent.clientHeight,
+                    width: modalContent.clientWidth,
+                    autosize: true,
+                    margin: {
+                        l: 50,
+                        r: 30,
+                        t: 30,
+                        b: 50
+                    }
+                };
+        
+                // Plot the chart in the modal
+                Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
+                    responsive: true,
+                    displayModeBar: true
+                }).then(() => {
+                    // Trigger a resize after plotting
+                    Plotly.Plots.resize(newChartDiv);
+                });
+            }, 100);
         }
-
+        
         // Event listeners for modal
         const modal = document.getElementById('chartModal');
         const closeBtn = modal.querySelector('.close');
-
+        
         closeBtn.onclick = function() {
             modal.style.display = "none";
         }
-
+        
         window.onclick = function(event) {
             if (event.target == modal) {
                 modal.style.display = "none";
             }
         }
-
+        
+        // Add keyboard event listener for Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && modal.style.display === 'block') {
+                modal.style.display = "none";
+            }
+        });
+        
         // Maximize button listeners
         document.querySelectorAll('.maximize-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -357,24 +382,25 @@
                 openModal(cardId);
             });
         });
-
+        
         // Window resize handler
         window.addEventListener('resize', function() {
+            // Resize main charts
             document.querySelectorAll('.chart-content').forEach(chart => {
                 Plotly.relayout(chart, {
-                    width: chart.clientWidth,
-                    height: chart.clientHeight
+                    'width': chart.clientWidth,
+                    'height': chart.clientHeight
                 });
             });
             
+            // Resize modal chart if modal is open
             const modalChart = document.querySelector('#modalChartContent > div');
-            if (modalChart) {
+            if (modalChart && modal.style.display === 'block') {
                 Plotly.relayout(modalChart, {
-                    width: modalChart.clientWidth,
-                    height: modalChart.clientHeight
+                    'width': modalChart.clientWidth,
+                    'height': modalChart.clientHeight
                 });
             }
         });
-    });
 </script>
 {% endblock %}
