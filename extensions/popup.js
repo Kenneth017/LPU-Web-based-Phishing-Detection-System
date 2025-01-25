@@ -1,7 +1,7 @@
-console.log('Popup script loaded');
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Popup DOM loaded');
-    const statusDiv = document.getElementById('status');
-    statusDiv.textContent = 'Checking connection...';
+document.getElementById('checkUrlButton').addEventListener('click', function() {
+    const url = document.getElementById('urlInput').value;
+    chrome.runtime.sendMessage({
+        action: "userInitiatedCheck",
+        url: url
+    });
 });
