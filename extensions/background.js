@@ -2,6 +2,42 @@
 let socket = null;
 let tabsWithContentScript = new Set();
 let lastCheckedUrl = '';
+let lastCheckedDomain = ''; // Add this to track domains
+
+// Function to extract domain from URL
+function extractDomain(url) {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname;
+    } catch (e) {
+        console.error('Invalid URL:', url);
+        return '';
+    }
+}
+
+// Function to check if URL should be analyzed
+function shouldAnalyzeUrl(url) {
+    if (!url) return false;
+    
+    // Skip chrome:// and other browser URLs
+    if (url.startsWith('chrome://') || 
+        url.startsWith('chrome-extension://') || 
+        url.startsWith('about:') || 
+        url.startsWith('edge://')) {
+        return false;
+    }
+
+    const domain = extractDomain(url);
+    
+    // Skip if it's the same domain as last checked
+    if (domain === lastCheckedDomain) {
+        console.log('Same domain, skipping check:', domain);
+        return false;
+    }
+
+    lastCheckedDomain = domain;
+    return true;
+}
 
 // Listener for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender) => {
@@ -99,7 +135,12 @@ function connectWebSocket() {
 
 // Modified checkUrl function
 function checkUrl(url, saveToHistory = false) {
-    if (socket && socket.readyState === WebSocket.OPEN && url !== lastCheckedUrl) {
+    if (!shouldAnalyzeUrl(url)) {
+        console.log('URL check skipped:', url);
+        return;
+    }
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
         console.log('Checking URL:', url);
         console.log('Save to history:', saveToHistory);
         socket.send(JSON.stringify({
@@ -110,22 +151,28 @@ function checkUrl(url, saveToHistory = false) {
         }));
         lastCheckedUrl = url;
     } else {
-        console.log('WebSocket not ready or URL already checked. Unable to check URL.');
+        console.log('WebSocket not ready. Unable to check URL.');
     }
 }
 
 // Tab update listener (single instance)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.active && tab.url && 
-        !tab.url.startsWith('chrome://')) {
+    if (changeInfo.status === 'complete' && tab.active && tab.url) {
         checkUrl(tab.url, false);  // Automatic check - don't save to history
     }
 });
 
 // Tab activation listener (single instance)
+let lastActiveTabId = null;
 chrome.tabs.onActivated.addListener((activeInfo) => {
+    // Prevent multiple checks when rapidly switching tabs
+    if (lastActiveTabId === activeInfo.tabId) {
+        return;
+    }
+    lastActiveTabId = activeInfo.tabId;
+
     chrome.tabs.get(activeInfo.tabId, (tab) => {
-        if (tab.url && !tab.url.startsWith('chrome://')) {
+        if (tab.url) {
             checkUrl(tab.url, false);  // Automatic check - don't save to history
         }
     });
