@@ -613,6 +613,7 @@ async def ws():
                     # Only perform analysis if explicitly requested
                     if data.get('analyze', False):
                         user_id = data.get('user_id', 1)  # Get user_id from request, default to 1 if not provided
+                        save_to_history = data.get('saveToHistory', False)  # New flag for saving to history
 
                         print("Analyzing input...")
                         result = await analyze_input(url)
@@ -652,29 +653,32 @@ async def ws():
                         
                         print(f"Main verdict: {main_verdict}")
                         
-                        # Store in database
-                        print("Storing result in database...")
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        c.execute('''
-                            INSERT INTO analysis_history 
-                            (input_string, input_type, is_malicious, community_score, metadata, 
-                             vendor_analysis, user_id, analysis_date, main_verdict)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            url,
-                            result['input_type'],
-                            int(result['is_malicious']),
-                            result['community_score'],
-                            json.dumps(result['metadata']),
-                            json.dumps(result['vendor_analysis']),
-                            user_id,
-                            get_singapore_time(),
-                            main_verdict
-                        ))
-                        conn.commit()
-                        conn.close()
-                        print("Result stored in database")
+                        # Only store in database if saveToHistory is True
+                        if save_to_history:
+                            print("Storing result in database...")
+                            conn = get_db_connection()
+                            c = conn.cursor()
+                            c.execute('''
+                                INSERT INTO analysis_history 
+                                (input_string, input_type, is_malicious, community_score, metadata, 
+                                 vendor_analysis, user_id, analysis_date, main_verdict)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                url,
+                                result['input_type'],
+                                int(result['is_malicious']),
+                                result['community_score'],
+                                json.dumps(result['metadata']),
+                                json.dumps(result['vendor_analysis']),
+                                user_id,
+                                get_singapore_time(),
+                                main_verdict
+                            ))
+                            conn.commit()
+                            conn.close()
+                            print("Result stored in database")
+                        else:
+                            print("Result not stored in database (automatic check)")
 
                         print("Sending result back to client...")
                         await websocket.send_json(result)
