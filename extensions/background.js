@@ -1,8 +1,7 @@
 // background.js
 let socket = null;
 let tabsWithContentScript = new Set();
-let lastCheckedUrl = '';
-let lastCheckedDomain = ''; // Add this to track domains
+let analyzedDomains = new Map(); // Track analyzed domains per tab
 
 // Function to extract domain from URL
 function extractDomain(url) {
@@ -16,7 +15,7 @@ function extractDomain(url) {
 }
 
 // Function to check if URL should be analyzed
-function shouldAnalyzeUrl(url) {
+function shouldAnalyzeUrl(tabId, url) {
     if (!url) return false;
     
     // Skip chrome:// and other browser URLs
@@ -29,13 +28,19 @@ function shouldAnalyzeUrl(url) {
 
     const domain = extractDomain(url);
     
-    // Skip if it's the same domain as last checked
-    if (domain === lastCheckedDomain) {
-        console.log('Same domain, skipping check:', domain);
+    // Check if this domain has been analyzed for this tab
+    if (!analyzedDomains.has(tabId)) {
+        analyzedDomains.set(tabId, new Set());
+    }
+    
+    const tabDomains = analyzedDomains.get(tabId);
+    if (tabDomains.has(domain)) {
+        console.log('Domain already analyzed for this tab, skipping check:', domain);
         return false;
     }
 
-    lastCheckedDomain = domain;
+    // Add the domain to the set of analyzed domains for this tab
+    tabDomains.add(domain);
     return true;
 }
 
@@ -46,15 +51,16 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }
     // Handle both types of URL check requests
     if (message.action === "checkUrl") {
-        checkUrl(message.url, false); // Regular check
+        checkUrl(sender.tab.id, message.url, false); // Regular check
     } else if (message.action === "userInitiatedCheck") {
-        checkUrl(message.url, true);  // User initiated check - save to history
+        checkUrl(sender.tab.id, message.url, true);  // User initiated check - save to history
     }
 });
 
 // Clean up when tabs are closed
 chrome.tabs.onRemoved.addListener((tabId) => {
     tabsWithContentScript.delete(tabId);
+    analyzedDomains.delete(tabId);
 });
 
 // Modified sendMessageToTab function
@@ -134,8 +140,8 @@ function connectWebSocket() {
 }
 
 // Modified checkUrl function
-function checkUrl(url, saveToHistory = false) {
-    if (!shouldAnalyzeUrl(url)) {
+function checkUrl(tabId, url, saveToHistory = false) {
+    if (!shouldAnalyzeUrl(tabId, url)) {
         console.log('URL check skipped:', url);
         return;
     }
@@ -149,31 +155,23 @@ function checkUrl(url, saveToHistory = false) {
             analyze: true,
             saveToHistory: saveToHistory
         }));
-        lastCheckedUrl = url;
     } else {
         console.log('WebSocket not ready. Unable to check URL.');
     }
 }
 
-// Tab update listener (single instance)
+// Tab update listener
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.active && tab.url) {
-        checkUrl(tab.url, false);  // Automatic check - don't save to history
+        checkUrl(tabId, tab.url, false);  // Automatic check - don't save to history
     }
 });
 
-// Tab activation listener (single instance)
-let lastActiveTabId = null;
+// Tab activation listener
 chrome.tabs.onActivated.addListener((activeInfo) => {
-    // Prevent multiple checks when rapidly switching tabs
-    if (lastActiveTabId === activeInfo.tabId) {
-        return;
-    }
-    lastActiveTabId = activeInfo.tabId;
-
     chrome.tabs.get(activeInfo.tabId, (tab) => {
         if (tab.url) {
-            checkUrl(tab.url, false);  // Automatic check - don't save to history
+            checkUrl(tab.id, tab.url, false);  // Automatic check - don't save to history
         }
     });
 });
