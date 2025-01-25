@@ -309,6 +309,7 @@
         const closeBtn = modal.querySelector('.close');
     
         function maximizeChart(cardId) {
+            console.log("Maximize chart called for:", cardId);
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
             const chartType = card.querySelector('.chart-content').id;
@@ -346,6 +347,7 @@
     
         // Maximize button listeners
         document.querySelectorAll('.maximize-btn').forEach(btn => {
+            console.log("Attaching event listener to:", btn);
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
