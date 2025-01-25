@@ -87,27 +87,28 @@
     flex: 1;
 }
 
-/* New styles for modal and maximize button */
+/* Update the modal background and z-index */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 1000; /* Update this */
     left: 0;
     top: 0;
     width: 100%;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(3px);
+    background-color: rgba(0, 0, 0, 0.7); /* Update this */
+    backdrop-filter: blur(3px); /* Add this */
 }
 
+/* Update the modal content dimensions */
 .modal-content {
     background-color: var(--secondary-bg);
-    margin: 2vh auto;
+    margin: 2vh auto; /* Update this */
     padding: 20px;
     border: 1px solid var(--glass-border);
     border-radius: 10px;
-    width: 95%;
-    height: 90vh;
+    width: 95%; /* Update this */
+    height: 90vh; /* Update this */
     display: flex;
     flex-direction: column;
 }
