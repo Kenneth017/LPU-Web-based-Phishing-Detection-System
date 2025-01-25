@@ -260,3 +260,22 @@
 .export-btn i {
     font-size: 1rem;
 }
+
+@media (max-width: 768px) {
+    .ml-dashboard .modal-content {
+        width: 98%; /* Increased width on mobile */
+        height: 95vh; /* Increased height on mobile */
+        margin: 1vh auto; /* Reduced margin on mobile */
+        padding: 15px; /* Reduced padding on mobile */
+    }
+
+    .modal-header h2 {
+        font-size: 1rem; /* Smaller font on mobile */
+    }
+
+    .close {
+        font-size: 24px; /* Smaller close button on mobile */
+        width: 32px;
+        height: 32px;
+    }
+}
