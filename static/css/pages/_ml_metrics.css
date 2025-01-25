@@ -8,11 +8,39 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
 .ml-dashboard h1 {
-    margin: 0 0 1rem 0;
+    margin: 0;
     font-size: 1.5rem;
     color: var(--accent-color);
-    text-align: center;
+}
+
+.export-btn {
+    background-color: var(--accent-color);
+    color: var(--secondary-bg);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.export-btn:hover {
+    background-color: var(--text-color);
+}
+
+.export-btn i {
+    font-size: 1rem;
 }
 
 .dashboard-grid {
@@ -93,24 +121,7 @@
 /* Chart actions */
 .chart-actions {
     display: flex;
-    gap: 5px;
     align-items: center;
-}
-
-.download-csv-btn, .download-pdf-btn {
-    background: none;
-    border: 1px solid var(--accent-color);
-    color: var(--accent-color);
-    font-size: 0.8rem;
-    cursor: pointer;
-    padding: 2px 5px;
-    border-radius: 3px;
-    transition: all 0.3s ease;
-}
-
-.download-csv-btn:hover, .download-pdf-btn:hover {
-    background-color: var(--accent-color);
-    color: var(--secondary-bg);
 }
 
 .maximize-btn {
@@ -212,6 +223,17 @@
         padding: 0.5rem;
     }
 
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .export-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
     .dashboard-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto repeat(6, auto);
@@ -234,15 +256,6 @@
         padding: 10px;
     }
 
-    .download-csv-btn, .download-pdf-btn {
-        font-size: 0.7rem;
-        padding: 1px 3px;
-    }
-
-    .chart-actions {
-        gap: 3px;
-    }
-
     .maximize-btn {
         font-size: 1rem;
     }
@@ -255,7 +268,11 @@
         overflow: visible;
     }
 
-    .chart-actions {
+    .export-btn {
+        display: none;
+    }
+
+    .maximize-btn {
         display: none;
     }
 
