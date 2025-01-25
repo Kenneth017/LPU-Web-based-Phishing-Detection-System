@@ -665,14 +665,13 @@ async function analyzeInput() {
         return;
     }
 
-    // Show loading indicator
     showLoadingIndicator();
 
     try {
         const response = await fetch(CONFIG.API_ENDPOINTS.CHECK, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ input })
+            body: JSON.stringify({ input, analyze: true })
         });
 
         if (!response.ok) {
@@ -682,14 +681,14 @@ async function analyzeInput() {
         const data = await response.json();
         
         if (data.status === 'success' && data.redirect) {
-            // Redirect to the result page
             window.location.href = data.redirect;
         } else {
-            throw new Error(data.error || 'Analysis failed');
+            displayResult(data);
         }
     } catch (error) {
-        hideLoadingIndicator();
         handleError(error, 'analyzeInput');
+    } finally {
+        hideLoadingIndicator();
     }
 }
 
