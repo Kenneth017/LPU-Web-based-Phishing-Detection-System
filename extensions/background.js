@@ -1,6 +1,5 @@
 // background.js
 let socket = null;
-let lastCheckedUrl = '';
 let tabsWithContentScript = new Set(); // Track tabs with content script
 
 // Add listener for content script ready message
@@ -48,7 +47,6 @@ function connectWebSocket() {
 
     socket.onopen = function(e) {
         console.log('WebSocket connected!');
-        checkCurrentTab();
     };
 
     socket.onmessage = async function(event) {
@@ -92,31 +90,6 @@ function connectWebSocket() {
     };
 }
 
-function checkCurrentTab() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (tabs[0] && socket && socket.readyState === WebSocket.OPEN) {
-            const url = tabs[0].url;
-            if (url && !url.startsWith('chrome://') && url !== lastCheckedUrl) {
-                console.log('Checking URL:', url);
-                socket.send(JSON.stringify({type: 'check_url', url: url}));
-                lastCheckedUrl = url;
-            }
-        }
-    });
-}
-
-// Listen for tab updates
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url && 
-        !tab.url.startsWith('chrome://') && 
-        socket && socket.readyState === WebSocket.OPEN &&
-        tab.url !== lastCheckedUrl) {
-        console.log('Tab updated:', tab.url);
-        socket.send(JSON.stringify({type: 'check_url', url: tab.url}));
-        lastCheckedUrl = tab.url;
-    }
-});
-
 // Check if the extension is enabled on startup
 chrome.management.getSelf(function(info) {
     if (info.enabled) {
@@ -137,7 +110,7 @@ chrome.management.onDisabled.addListener(function(info) {
     }
 });
 
-// Keep alive - only if extension is enabled
+// Keep WebSocket connection alive with minimal pings
 setInterval(() => {
     chrome.management.getSelf(function(info) {
         if (info.enabled && socket && socket.readyState === WebSocket.OPEN) {
