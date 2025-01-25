@@ -109,8 +109,7 @@
         // Add default configuration for all charts
         const defaultConfig = {
             responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
+            displayModeBar: false, // Hide the mode bar by default
             modeBarButtonsToRemove: ['lasso2d', 'select2d'],
             toImageButtonOptions: {
                 format: 'png',
@@ -118,7 +117,19 @@
                 height: 500,
                 width: 700,
                 scale: 2
-            }
+            },
+            displaylogo: false,
+            showTips: false,
+            modeBarButtonsToAdd: [
+                {
+                    name: 'Maximize',
+                    icon: Plotly.Icons.maximize,
+                    click: function(gd) {
+                        const cardId = gd._fullLayout.container.parentNode.parentNode.id;
+                        openModal(cardId);
+                    }
+                }
+            ]
         };
     
         // Initialize main charts
@@ -145,7 +156,11 @@
                     font: { color: '#FFFFFF' }
                 }
             };
-            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout, defaultConfig);
+            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout, {
+                ...defaultConfig,
+                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
+                displayModeBar: 'hover'
+            });
     
             // Precision-Recall Curve
             const prData = {{ performance_graphs.pr_curve|tojson }};
@@ -362,10 +377,9 @@
                     // Plot the chart in the modal
                     Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
                         ...defaultConfig,
-                        responsive: true,
-                        displayModeBar: true
+                        modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d'],
+                        displayModeBar: 'hover'
                     }).then(() => {
-                        // Trigger a resize after plotting
                         Plotly.Plots.resize(newChartDiv);
                     });
                 }, 100);
