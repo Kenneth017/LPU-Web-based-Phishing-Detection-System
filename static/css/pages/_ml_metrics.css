@@ -88,7 +88,7 @@
 }
 
 /* Update the modal background and z-index */
-.modal {
+.ml-dashboard .modal {
     display: none;
     position: fixed;
     z-index: 1000; /* Update this */
@@ -101,7 +101,7 @@
 }
 
 /* Update the modal content dimensions */
-.modal-content {
+.ml-dashboard .modal-content{
     background-color: var(--secondary-bg);
     margin: 2vh auto; /* Update this */
     padding: 20px;
