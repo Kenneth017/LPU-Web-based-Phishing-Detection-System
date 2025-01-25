@@ -142,18 +142,32 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script src="{{ url_for('static', filename='script.new.js') }}"></script>
 <script>
-    var socket = io();
+    // WebSocket connection
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
     
-    socket.on('connect', function() {
+    ws.onopen = function() {
         console.log('WebSocket connected!');
-    });
+    };
 
-    socket.on('url_result', function(result) {
-        displayRealTimeResult(result);
-    });
+    ws.onmessage = function(event) {
+        const result = JSON.parse(event.data);
+        if (result.type === 'url_result') {
+            displayRealTimeResult(result);
+        }
+    };
+
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = function() {
+        console.log('WebSocket connection closed');
+        // Optional: Implement reconnection logic here
+        setTimeout(connectWebSocket, 5000); // Attempt to reconnect after 5 seconds
+    };
 
     function displayRealTimeResult(result) {
         var resultDiv = document.getElementById('real-time-result');
@@ -174,10 +188,35 @@
             'https://malware-site.com'
         ];
         var randomUrl = urls[Math.floor(Math.random() * urls.length)];
-        socket.emit('check_url', {url: randomUrl});
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'check_url',
+                url: randomUrl
+            }));
+        }
+    }
+
+    // Optional: Implement reconnection logic
+    function connectWebSocket() {
+        if (ws.readyState === WebSocket.CLOSED) {
+            const newWs = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+            // Reassign all event handlers
+            newWs.onopen = ws.onopen;
+            newWs.onmessage = ws.onmessage;
+            newWs.onerror = ws.onerror;
+            newWs.onclose = ws.onclose;
+            ws = newWs;
+        }
     }
 
     // Check a random URL every 10 seconds (for testing)
     setInterval(checkRandomUrl, 10000);
+
+    // Add event listener for page unload to close WebSocket connection gracefully
+    window.addEventListener('beforeunload', function() {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+    });
 </script>
 {% endblock %}
