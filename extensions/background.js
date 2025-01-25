@@ -7,6 +7,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     if (sender.tab) {
         tabsWithContentScript.add(sender.tab.id);
     }
+    // Add this block to handle explicit URL check requests
+    if (message.action === "checkUrl") {
+        checkUrl(message.url);
+    }
 });
 
 // Clean up when tabs are closed
@@ -88,6 +92,20 @@ function connectWebSocket() {
     socket.onerror = function(error) {
         console.error('WebSocket Error:', error);
     };
+}
+
+// Function to check URL (only when explicitly called)
+function checkUrl(url) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log('Checking URL:', url);
+        socket.send(JSON.stringify({
+            type: 'check_url',
+            url: url,
+            analyze: true  // Add this flag to indicate that analysis should be performed
+        }));
+    } else {
+        console.log('WebSocket not ready. Unable to check URL.');
+    }
 }
 
 // Check if the extension is enabled on startup
