@@ -30,7 +30,18 @@ async function sendMessageToTab(tab, message) {
     }
 }
 
+function disconnectWebSocket() {
+    if (socket) {
+        socket.close();
+        socket = null;
+    }
+}
+
 function connectWebSocket() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        return;  // Already connected
+    }
+
     console.log('Attempting to connect to WebSocket...');
     
     socket = new WebSocket('wss://phishing-detection-system-jig1.onrender.com/ws');
@@ -65,8 +76,15 @@ function connectWebSocket() {
     };
 
     socket.onclose = function(event) {
-        console.log('WebSocket disconnected, reconnecting in 5 seconds...');
-        setTimeout(connectWebSocket, 5000);
+        console.log('WebSocket disconnected');
+        socket = null;
+        // Only reconnect if the extension is enabled
+        chrome.management.getSelf(function(info) {
+            if (info.enabled) {
+                console.log('Reconnecting in 5 seconds...');
+                setTimeout(connectWebSocket, 5000);
+            }
+        });
     };
 
     socket.onerror = function(error) {
@@ -99,12 +117,31 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
-// Initial connection
-connectWebSocket();
-
-// Keep alive
-setInterval(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'ping' }));
+// Check if the extension is enabled on startup
+chrome.management.getSelf(function(info) {
+    if (info.enabled) {
+        connectWebSocket();
     }
+});
+
+// Listen for changes in the extension's state
+chrome.management.onEnabled.addListener(function(info) {
+    if (info.id === chrome.runtime.id) {
+        connectWebSocket();
+    }
+});
+
+chrome.management.onDisabled.addListener(function(info) {
+    if (info.id === chrome.runtime.id) {
+        disconnectWebSocket();
+    }
+});
+
+// Keep alive - only if extension is enabled
+setInterval(() => {
+    chrome.management.getSelf(function(info) {
+        if (info.enabled && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+        }
+    });
 }, 30000);
