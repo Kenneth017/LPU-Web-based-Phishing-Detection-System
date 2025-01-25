@@ -347,7 +347,7 @@
                 const chartType = card.querySelector('.chart-content').id;
                 
                 modalTitle.textContent = title;
-                modal.style.display = "block";
+                modal.style.display = "flex";
                 
                 // Clear previous content
                 modalContent.innerHTML = '';
@@ -358,31 +358,30 @@
                 newChartDiv.style.height = '100%';
                 modalContent.appendChild(newChartDiv);
             
-                // Wait for the modal to be fully visible before plotting
-                setTimeout(() => {
-                    // Create a new layout for the modal with adjusted dimensions
-                    const modalLayout = {
-                        ...chartData[chartType].layout,
-                        height: modalContent.clientHeight,
-                        width: modalContent.clientWidth,
-                        autosize: true,
-                        margin: {
-                            l: 50,
-                            r: 30,
-                            t: 30,
-                            b: 50
-                        }
-                    };
+                // Create a new layout for the modal with adjusted dimensions
+                const modalLayout = {
+                    ...chartData[chartType].layout,
+                    autosize: true,
+                    margin: { l: 50, r: 30, t: 30, b: 50 },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#FFFFFF' }
+                };
             
-                    // Plot the chart in the modal
-                    Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
-                        ...defaultConfig,
-                        modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d'],
-                        displayModeBar: 'hover'
-                    }).then(() => {
-                        Plotly.Plots.resize(newChartDiv);
-                    });
-                }, 100);
+                // Plot the chart in the modal
+                Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
+                    ...defaultConfig,
+                    modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d'],
+                    displayModeBar: 'hover'
+                }).then(() => {
+                    // Trigger a resize after plotting
+                    Plotly.Plots.resize(newChartDiv);
+                });
+            
+                // Add event listener for window resize
+                window.addEventListener('resize', function() {
+                    Plotly.Plots.resize(newChartDiv);
+                });
             }
             
             // Event listeners for modal
@@ -401,7 +400,7 @@
             
             // Add keyboard event listener for Escape key
             document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape' && modal.style.display === 'block') {
+                if (event.key === 'Escape' && modal.style.display === 'flex') {
                     modal.style.display = "none";
                 }
             });
