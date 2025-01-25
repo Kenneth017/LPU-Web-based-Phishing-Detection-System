@@ -13,6 +13,39 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }
 });
 
+// Add these new listeners
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.active && tab.url && 
+        !tab.url.startsWith('chrome://') && 
+        tab.url !== lastCheckedUrl) {
+        checkUrl(tab.url);
+    }
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+        if (tab.url && !tab.url.startsWith('chrome://') &&
+            tab.url !== lastCheckedUrl) {
+            checkUrl(tab.url);
+        }
+    });
+});
+
+// Modify the checkUrl function
+function checkUrl(url) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log('Checking URL:', url);
+        socket.send(JSON.stringify({
+            type: 'check_url',
+            url: url,
+            analyze: true
+        }));
+        lastCheckedUrl = url;
+    } else {
+        console.log('WebSocket not ready. Unable to check URL.');
+    }
+}
+
 // Clean up when tabs are closed
 chrome.tabs.onRemoved.addListener((tabId) => {
     tabsWithContentScript.delete(tabId);
