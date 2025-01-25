@@ -91,7 +91,6 @@
             <div id="modalChartContent"></div>
         </div>
     </div>
-</div>
 
 <!-- Include Plotly.js -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -326,8 +325,8 @@
             const modalLayout = {
                 ...chartData[chartType].layout,
                 autosize: true,
-                height: modalContent.clientHeight - 60, // Subtract header height
-                width: modalContent.clientWidth - 40,   // Subtract padding
+                height: modalContent.clientHeight - 60,
+                width: modalContent.clientWidth - 40,
                 margin: {
                     l: 50,
                     r: 30,
