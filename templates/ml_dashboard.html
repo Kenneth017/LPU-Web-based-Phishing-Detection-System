@@ -312,7 +312,7 @@
         function maximizeChart(cardId) {
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
-            const chartDiv = card.querySelector('.chart-content');
+            const chartType = card.querySelector('.chart-content').id;
             
             modalTitle.textContent = title;
             modal.style.display = "block";
@@ -323,50 +323,50 @@
             modalContent.innerHTML = '';
             modalContent.appendChild(newChartDiv);
             
-            const chartType = chartDiv.id;
-            
             const modalLayout = {
                 ...chartData[chartType].layout,
                 autosize: true,
-                height: modalContent.clientHeight,
-                width: modalContent.clientWidth
+                height: modalContent.clientHeight - 60, // Subtract header height
+                width: modalContent.clientWidth - 40,   // Subtract padding
+                margin: {
+                    l: 50,
+                    r: 30,
+                    t: 30,
+                    b: 50
+                }
             };
             
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout).then(() => {
-                Plotly.Plots.resize(newChartDiv);
-            });
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
         }
     
-        closeBtn.onclick = function() {
-            modal.style.display = "none";
-        }
+        // Modal event listeners
+        closeBtn.onclick = () => modal.style.display = "none";
+        window.onclick = (event) => {
+            if (event.target == modal) modal.style.display = "none";
+        };
     
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
-    
-        // Add event listeners for maximize buttons
+        // Maximize button listeners
         document.querySelectorAll('.maximize-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                const cardId = this.closest('.chart-card').id;
-                maximizeChart(cardId);
+                maximizeChart(this.closest('.chart-card').id);
             });
         });
     
-        // Handle window resize
+        // Window resize handler
         window.addEventListener('resize', function() {
             document.querySelectorAll('.chart-content').forEach(chart => {
-                Plotly.Plots.resize(chart);
+                Plotly.relayout(chart, { 'autosize': true });
             });
             
             if (modal.style.display === "block") {
                 const modalChart = modalContent.querySelector('div');
                 if (modalChart) {
-                    Plotly.Plots.resize(modalChart);
+                    Plotly.relayout(modalChart, {
+                        'height': modalContent.clientHeight - 60,
+                        'width': modalContent.clientWidth - 40
+                    });
                 }
             }
         });
