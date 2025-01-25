@@ -97,7 +97,7 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Store the chart data globally
+        // Store the chart data globally so it's accessible for the modal
         let chartData = {
             rocCurve: null,
             prCurve: null,
@@ -106,183 +106,7 @@
             vendorAgreement: null
         };
     
-        // Add default configuration for all charts
-        const defaultConfig = {
-            responsive: true,
-            displayModeBar: false, // Hide the mode bar by default
-            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-            toImageButtonOptions: {
-                format: 'png',
-                filename: 'chart',
-                height: 500,
-                width: 700,
-                scale: 2
-            },
-            displaylogo: false,
-            showTips: false,
-            modeBarButtonsToAdd: [
-                {
-                    name: 'Maximize',
-                    icon: Plotly.Icons.maximize,
-                    click: function(gd) {
-                        const cardId = gd._fullLayout.container.parentNode.parentNode.id;
-                        openModal(cardId);
-                    }
-                }
-            ]
-        };
-    
         // Initialize main charts
-        function initializeCharts() {
-            // ROC Curve
-            const rocData = {{ performance_graphs.roc_curve|tojson }};
-            chartData.rocCurve = {
-                data: [{
-                    x: rocData.fpr,
-                    y: rocData.tpr,
-                    type: 'scatter',
-                    mode: 'lines',
-                    name: `ROC (AUC = ${rocData.auc.toFixed(3)})`,
-                    line: {color: '#17BECF'}
-                }],
-                layout: {
-                    title: '',
-                    xaxis: {title: 'False Positive Rate'},
-                    yaxis: {title: 'True Positive Rate'},
-                    margin: {t: 10, r: 10, b: 30, l: 40},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
-                }
-            };
-            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout, {
-                ...defaultConfig,
-                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
-                displayModeBar: 'hover'
-            });
-    
-            // Precision-Recall Curve
-            const prData = {{ performance_graphs.pr_curve|tojson }};
-            if (prData && prData.precision && prData.recall) {
-                chartData.prCurve = {
-                    data: [{
-                        x: prData.recall,
-                        y: prData.precision,
-                        type: 'scatter',
-                        mode: 'lines',
-                        name: 'Precision-Recall',
-                        line: {color: '#7F7F7F'}
-                    }],
-                    layout: {
-                        title: '',
-                        xaxis: {title: 'Recall', range: [0, 1]},
-                        yaxis: {title: 'Precision', range: [0, 1]},
-                        showlegend: true,
-                        margin: {t: 10, r: 10, b: 30, l: 40},
-                        height: 200,
-                        plot_bgcolor: 'rgba(0,0,0,0)',
-                        paper_bgcolor: 'rgba(0,0,0,0)',
-                        font: { color: '#FFFFFF' }
-                    }
-                };
-                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout, {
-                    ...defaultConfig,
-                    modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
-                    displayModeBar: 'hover'
-                });
-            }
-    
-            // Feature Importance
-            const featureData = {{ feature_importance|tojson }};
-            const featureImportanceData = [];
-            for (const category in featureData) {
-                for (const feature in featureData[category]) {
-                    featureImportanceData.push({
-                        feature: `${category} - ${feature}`,
-                        importance: featureData[category][feature]
-                    });
-                }
-            }
-            chartData.featureImportance = {
-                data: [{
-                    x: featureImportanceData.map(d => d.importance),
-                    y: featureImportanceData.map(d => d.feature),
-                    type: 'bar',
-                    orientation: 'h'
-                }],
-                layout: {
-                    title: '',
-                    xaxis: {title: 'Importance Score'},
-                    yaxis: {
-                        title: '',
-                        automargin: true,
-                        tickfont: {size: 8}
-                    },
-                    margin: {t: 10, r: 10, b: 30, l: 150},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
-                }
-            };
-            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout, {
-                ...defaultConfig,
-                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
-                displayModeBar: 'hover'
-            });
-    
-            // Model Evolution
-            const evolutionData = {{ model_evolution|tojson }};
-            chartData.modelEvolution = {
-                data: [{
-                    x: evolutionData.dates,
-                    y: evolutionData.accuracy,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    name: 'Accuracy'
-                }],
-                layout: {
-                    title: '',
-                    xaxis: {title: 'Date'},
-                    yaxis: {title: 'Accuracy'},
-                    margin: {t: 10, r: 10, b: 30, l: 40},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
-                }
-            };
-            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout, {
-                ...defaultConfig,
-                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
-                displayModeBar: 'hover'
-            });
-    
-            // Vendor Agreement
-            const vendorData = {{ vendor_agreement|tojson }};
-            chartData.vendorAgreement = {
-                data: [{
-                    values: Object.values(vendorData),
-                    labels: Object.keys(vendorData),
-                    type: 'pie'
-                }],
-                layout: {
-                    title: '',
-                    margin: {t: 10, r: 10, b: 10, l: 10},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
-                }
-            };
-            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout, {
-                ...defaultConfig,
-                modeBarButtonsToShow: ['toImage', 'zoom2d', 'pan2d', 'resetScale2d', 'Maximize'],
-                displayModeBar: 'hover'
-            });
-        }
-    
         // Initialize main charts
         initializeCharts();
     
@@ -346,183 +170,78 @@
             document.body.removeChild(link);
         }
 
-            // Add event listener for export button
-            document.getElementById('exportAllData').addEventListener('click', exportAllData);
-        
-            // Modal functionality
-            function openModal(cardId) {
-                const modal = document.getElementById('chartModal');
-                const modalTitle = document.getElementById('modalChartTitle');
-                const modalContent = document.getElementById('modalChartContent');
-                
-                const card = document.getElementById(cardId);
-                const title = card.querySelector('h3').textContent;
-                const chartType = card.querySelector('.chart-content').id;
-                
-                modalTitle.textContent = title;
-                modal.style.display = "flex";
-                
-                // Clear previous content
-                modalContent.innerHTML = '';
-                
-                // Create a new div for the chart
-                const newChartDiv = document.createElement('div');
-                newChartDiv.style.width = '100%';
-                newChartDiv.style.height = '100%';
-                modalContent.appendChild(newChartDiv);
+        // Add event listener for export button
+        document.getElementById('exportAllData').addEventListener('click', exportAllData);
+    
+        // Modal functionality
+        const modal = document.getElementById('chartModal');
+        const modalTitle = document.getElementById('modalChartTitle');
+        const modalContent = document.getElementById('modalChartContent');
+        const closeBtn = modal.querySelector('.close');
+    
+        function maximizeChart(cardId) {
+            const card = document.getElementById(cardId);
+            const title = card.querySelector('h3').textContent;
+            const chartDiv = card.querySelector('.chart-content');
             
-                // Create a new layout for the modal with adjusted dimensions
-                const modalLayout = {
-                    ...chartData[chartType].layout,
-                    autosize: true,
-                    height: modalContent.clientHeight,
-                    width: modalContent.clientWidth,
-                    margin: { l: 50, r: 30, t: 30, b: 50 },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
-                };
+            modalTitle.textContent = title;
+            modal.style.display = "flex";
             
-                // Plot the chart in the modal
-                Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {
-                    responsive: true,
-                    displayModeBar: 'hover',
-                    modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-                    displaylogo: false
-                }).then(() => {
-                    // Trigger a resize after plotting
-                    Plotly.Plots.resize(newChartDiv);
-                });
+            const newChartDiv = document.createElement('div');
+            newChartDiv.style.width = '100%';
+            newChartDiv.style.height = '100%';
+            modalContent.innerHTML = '';
+            modalContent.appendChild(newChartDiv);
             
-                // Add event listener for window resize
-                function resizeChart() {
-                    Plotly.relayout(newChartDiv, {
-                        width: modalContent.clientWidth,
-                        height: modalContent.clientHeight
-                    });
-                }
+            // Get the chart type from the chart div id
+            const chartType = chartDiv.id;
             
-                window.addEventListener('resize', resizeChart);
+            // Create a new layout for the modal with increased height
+            const modalLayout = {
+                ...chartData[chartType].layout,
+                height: modalContent.clientHeight,
+                width: modalContent.clientWidth,
+                autosize: true
+            };
             
-                // Remove event listener when modal is closed
-                modal.addEventListener('click', function(event) {
-                    if (event.target === modal) {
-                        window.removeEventListener('resize', resizeChart);
-                        modal.style.display = "none";
-                    }
-                });
-            }
-            
-            // Event listeners for modal
-            const modal = document.getElementById('chartModal');
-            const closeBtn = modal.querySelector('.close');
-            
-            closeBtn.onclick = function() {
+            // Plot the chart in the modal
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
+        }
+    
+        closeBtn.onclick = function() {
+            modal.style.display = "none";
+        }
+    
+        window.onclick = function(event) {
+            if (event.target == modal) {
                 modal.style.display = "none";
             }
-            
-            // Add keyboard event listener for Escape key
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape' && modal.style.display === 'flex') {
-                    modal.style.display = "none";
-                }
+        }
+    
+        // Add event listeners for maximize buttons
+        document.querySelectorAll('.maximize-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const cardId = this.closest('.chart-card').id;
+                maximizeChart(cardId);
             });
-            
-            // Maximize button listeners
-            document.querySelectorAll('.maximize-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const cardId = this.closest('.chart-card').id;
-                    openModal(cardId);
-                });
-            });
-            
-            // Window resize handler with debouncing
-            let resizeTimeout;
-            window.addEventListener('resize', function() {
-                // Clear the previous timeout
-                clearTimeout(resizeTimeout);
-                
-                // Set a new timeout
-                resizeTimeout = setTimeout(function() {
-                    // Resize main charts
-                    document.querySelectorAll('.chart-content').forEach(chart => {
-                        const layout = {
-                            'width': chart.clientWidth,
-                            'height': chart.clientHeight,
-                            'autosize': true
-                        };
-                        
-                        Plotly.relayout(chart, layout).catch(err => {
-                            console.error('Error resizing chart:', err);
-                        });
-                    });
-                    
-                    // Resize modal chart if modal is open
-                    const modalChart = document.querySelector('#modalChartContent > div');
-                    if (modalChart && modal.style.display === 'block') {
-                        const modalLayout = {
-                            'width': modalChart.clientWidth,
-                            'height': modalChart.clientHeight,
-                            'autosize': true
-                        };
-                        
-                        Plotly.relayout(modalChart, modalLayout).catch(err => {
-                            console.error('Error resizing modal chart:', err);
-                        });
-                    }
-                }, 250); // Wait for 250ms after the last resize event
-            });
-        
-            // Add resize observer for more reliable size detection
-            const resizeObserver = new ResizeObserver(entries => {
-                entries.forEach(entry => {
-                    const chart = entry.target;
-                    if (chart.children.length > 0) {
-                        Plotly.relayout(chart, {
-                            'width': entry.contentRect.width,
-                            'height': entry.contentRect.height,
-                            'autosize': true
-                        }).catch(err => {
-                            console.error('Error in resize observer:', err);
-                        });
-                    }
-                });
-            });
-        
-            // Observe all chart containers
+        });
+    
+        // Handle window resize
+        window.addEventListener('resize', function() {
             document.querySelectorAll('.chart-content').forEach(chart => {
-                resizeObserver.observe(chart);
+                Plotly.Plots.resize(chart);
             });
-        
-            // Update charts when tab becomes visible
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    document.querySelectorAll('.chart-content').forEach(chart => {
-                        Plotly.relayout(chart, {
-                            'width': chart.clientWidth,
-                            'height': chart.clientHeight,
-                            'autosize': true
-                        }).catch(err => {
-                            console.error('Error updating chart on visibility change:', err);
-                        });
-                    });
+            
+            // Resize modal chart if modal is open
+            if (modal.style.display === "flex") {
+                const modalChart = modalContent.querySelector('div');
+                if (modalChart) {
+                    Plotly.Plots.resize(modalChart);
                 }
-            });
-        
-            // Function to force resize all charts
-            function forceResizeAllCharts() {
-                document.querySelectorAll('.chart-content').forEach(chart => {
-                    Plotly.relayout(chart, {
-                        'width': chart.clientWidth,
-                        'height': chart.clientHeight,
-                        'autosize': true
-                    }).catch(err => {
-                        console.error('Error in force resize:', err);
-                    });
-                });
             }
         });
+    });
 </script>
 {% endblock %}
