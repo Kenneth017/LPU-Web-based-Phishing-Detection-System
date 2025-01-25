@@ -606,79 +606,83 @@ async def ws():
                     await websocket.send_json({'type': 'pong'})
                     continue
                 
-                if 'url' in data:
+                if data.get('type') == 'check_url' and 'url' in data:
                     url = data['url']
                     print(f"Processing URL: {url}")
 
-                    user_id = 1  # Temporary user ID for testing
+                    # Only perform analysis if explicitly requested
+                    if data.get('analyze', False):
+                        user_id = data.get('user_id', 1)  # Get user_id from request, default to 1 if not provided
 
-                    print("Analyzing input...")
-                    result = await analyze_input(url)
-                    print(f"Analysis result: {result}")
-                    
-                    # Your existing verdict calculation logic
-                    verdict_priorities = {
-                        'phishing': 0,
-                        'malicious': 0,
-                        'suspicious': 0,
-                        'safe': 0
-                    }
-                    
-                    for vendor in result['vendor_analysis']:
-                        verdict = vendor['verdict'].lower()
-                        if verdict == 'phishing':
-                            verdict_priorities['phishing'] += 1
-                        elif verdict == 'malicious':
-                            verdict_priorities['malicious'] += 1
-                        elif verdict == 'suspicious':
-                            verdict_priorities['suspicious'] += 1
-                        elif verdict in ['clean', 'harmless', 'safe']:
-                            verdict_priorities['safe'] += 1
-                    
-                    print(f"Verdict priorities: {verdict_priorities}")
-                    
-                    main_verdict = 'safe'
-                    if verdict_priorities['phishing'] > 0:
-                        main_verdict = 'phishing'
-                    elif verdict_priorities['malicious'] > 0:
-                        main_verdict = 'malicious'
-                    elif verdict_priorities['suspicious'] > 0:
-                        main_verdict = 'suspicious'
-                    
-                    result['main_verdict'] = main_verdict
-                    result['is_malicious'] = main_verdict != 'safe'
-                    
-                    print(f"Main verdict: {main_verdict}")
-                    
-                    # Store in database
-                    print("Storing result in database...")
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute('''
-                        INSERT INTO analysis_history 
-                        (input_string, input_type, is_malicious, community_score, metadata, 
-                         vendor_analysis, user_id, analysis_date, main_verdict)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        url,
-                        result['input_type'],
-                        int(result['is_malicious']),
-                        result['community_score'],
-                        json.dumps(result['metadata']),
-                        json.dumps(result['vendor_analysis']),
-                        user_id,
-                        get_singapore_time(),
-                        main_verdict
-                    ))
-                    conn.commit()
-                    conn.close()
-                    print("Result stored in database")
+                        print("Analyzing input...")
+                        result = await analyze_input(url)
+                        print(f"Analysis result: {result}")
+                        
+                        # Your existing verdict calculation logic
+                        verdict_priorities = {
+                            'phishing': 0,
+                            'malicious': 0,
+                            'suspicious': 0,
+                            'safe': 0
+                        }
+                        
+                        for vendor in result['vendor_analysis']:
+                            verdict = vendor['verdict'].lower()
+                            if verdict == 'phishing':
+                                verdict_priorities['phishing'] += 1
+                            elif verdict == 'malicious':
+                                verdict_priorities['malicious'] += 1
+                            elif verdict == 'suspicious':
+                                verdict_priorities['suspicious'] += 1
+                            elif verdict in ['clean', 'harmless', 'safe']:
+                                verdict_priorities['safe'] += 1
+                        
+                        print(f"Verdict priorities: {verdict_priorities}")
+                        
+                        main_verdict = 'safe'
+                        if verdict_priorities['phishing'] > 0:
+                            main_verdict = 'phishing'
+                        elif verdict_priorities['malicious'] > 0:
+                            main_verdict = 'malicious'
+                        elif verdict_priorities['suspicious'] > 0:
+                            main_verdict = 'suspicious'
+                        
+                        result['main_verdict'] = main_verdict
+                        result['is_malicious'] = main_verdict != 'safe'
+                        
+                        print(f"Main verdict: {main_verdict}")
+                        
+                        # Store in database
+                        print("Storing result in database...")
+                        conn = get_db_connection()
+                        c = conn.cursor()
+                        c.execute('''
+                            INSERT INTO analysis_history 
+                            (input_string, input_type, is_malicious, community_score, metadata, 
+                             vendor_analysis, user_id, analysis_date, main_verdict)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            url,
+                            result['input_type'],
+                            int(result['is_malicious']),
+                            result['community_score'],
+                            json.dumps(result['metadata']),
+                            json.dumps(result['vendor_analysis']),
+                            user_id,
+                            get_singapore_time(),
+                            main_verdict
+                        ))
+                        conn.commit()
+                        conn.close()
+                        print("Result stored in database")
 
-                    print("Sending result back to client...")
-                    await websocket.send_json(result)
-                    print("Result sent to client")
+                        print("Sending result back to client...")
+                        await websocket.send_json(result)
+                        print("Result sent to client")
+                    else:
+                        print("URL received but analysis not requested")
                 else:
-                    print("Received data does not contain 'url' key")
+                    print("Received data does not contain 'url' key or is not a check request")
                     await websocket.send_json({'error': 'Invalid data format'})
                     
             except asyncio.CancelledError:
