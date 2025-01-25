@@ -198,3 +198,40 @@
         padding: 8px;
     }
 }
+
+#real-time-check {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+}
+
+#real-time-check h2 {
+    font-size: 1.2rem;
+    color: var(--accent-color);
+    margin-bottom: 1rem;
+}
+
+#real-time-result {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+#real-time-result p {
+    margin: 0.5rem 0;
+    color: var(--text-color);
+}
+
+/* Add some responsive styling */
+@media (max-width: 768px) {
+    #real-time-check {
+        margin-top: 1.5rem;
+        padding: 0.8rem;
+    }
+
+    #real-time-check h2 {
+        font-size: 1.1rem;
+    }
+}
