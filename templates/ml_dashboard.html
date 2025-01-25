@@ -108,8 +108,133 @@
 
         // Initialize main charts
         function initializeCharts() {
-            // [Previous chart initialization code remains the same]
-            // ... (keep all your existing chart initialization code)
+            // ROC Curve
+            const rocData = {{ performance_graphs.roc_curve|tojson }};
+            chartData.rocCurve = {
+                data: [{
+                    x: rocData.fpr,
+                    y: rocData.tpr,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: `ROC (AUC = ${rocData.auc.toFixed(3)})`,
+                    line: {color: '#17BECF'}
+                }],
+                layout: {
+                    title: '',
+                    xaxis: {title: 'False Positive Rate'},
+                    yaxis: {title: 'True Positive Rate'},
+                    margin: {t: 10, r: 10, b: 30, l: 40},
+                    height: 200,
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#FFFFFF' }
+                }
+            };
+            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout);
+
+            // Precision-Recall Curve
+            const prData = {{ performance_graphs.pr_curve|tojson }};
+            if (prData && prData.precision && prData.recall) {
+                chartData.prCurve = {
+                    data: [{
+                        x: prData.recall,
+                        y: prData.precision,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: 'Precision-Recall',
+                        line: {color: '#7F7F7F'}
+                    }],
+                    layout: {
+                        title: '',
+                        xaxis: {title: 'Recall', range: [0, 1]},
+                        yaxis: {title: 'Precision', range: [0, 1]},
+                        showlegend: true,
+                        margin: {t: 10, r: 10, b: 30, l: 40},
+                        height: 200,
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: '#FFFFFF' }
+                    }
+                };
+                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout);
+            }
+
+            // Feature Importance
+            const featureData = {{ feature_importance|tojson }};
+            const featureImportanceData = [];
+            for (const category in featureData) {
+                for (const feature in featureData[category]) {
+                    featureImportanceData.push({
+                        feature: `${category} - ${feature}`,
+                        importance: featureData[category][feature]
+                    });
+                }
+            }
+            chartData.featureImportance = {
+                data: [{
+                    x: featureImportanceData.map(d => d.importance),
+                    y: featureImportanceData.map(d => d.feature),
+                    type: 'bar',
+                    orientation: 'h'
+                }],
+                layout: {
+                    title: '',
+                    xaxis: {title: 'Importance Score'},
+                    yaxis: {
+                        title: '',
+                        automargin: true,
+                        tickfont: {size: 8}
+                    },
+                    margin: {t: 10, r: 10, b: 30, l: 150},
+                    height: 200,
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#FFFFFF' }
+                }
+            };
+            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
+
+            // Model Evolution
+            const evolutionData = {{ model_evolution|tojson }};
+            chartData.modelEvolution = {
+                data: [{
+                    x: evolutionData.dates,
+                    y: evolutionData.accuracy,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Accuracy'
+                }],
+                layout: {
+                    title: '',
+                    xaxis: {title: 'Date'},
+                    yaxis: {title: 'Accuracy'},
+                    margin: {t: 10, r: 10, b: 30, l: 40},
+                    height: 200,
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#FFFFFF' }
+                }
+            };
+            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
+
+            // Vendor Agreement
+            const vendorData = {{ vendor_agreement|tojson }};
+            chartData.vendorAgreement = {
+                data: [{
+                    values: Object.values(vendorData),
+                    labels: Object.keys(vendorData),
+                    type: 'pie'
+                }],
+                layout: {
+                    title: '',
+                    margin: {t: 10, r: 10, b: 10, l: 10},
+                    height: 200,
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#FFFFFF' }
+                }
+            };
+            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
         }
 
         // Initialize main charts
@@ -180,8 +305,33 @@
 
         // Modal functionality
         function openModal(cardId) {
-            // [Previous modal code remains the same]
-            // ... (keep your existing modal code)
+            const modal = document.getElementById('chartModal');
+            const modalTitle = document.getElementById('modalChartTitle');
+            const modalContent = document.getElementById('modalChartContent');
+            
+            const card = document.getElementById(cardId);
+            const title = card.querySelector('h3').textContent;
+            const chartDiv = card.querySelector('.chart-content');
+            
+            modalTitle.textContent = title;
+            modal.style.display = "block";
+            
+            modalContent.innerHTML = '';
+            
+            const newChartDiv = document.createElement('div');
+            newChartDiv.style.width = '100%';
+            newChartDiv.style.height = '80vh';
+            modalContent.appendChild(newChartDiv);
+            
+            const chartType = chartDiv.id;
+            
+            const modalLayout = {
+                ...chartData[chartType].layout,
+                height: newChartDiv.clientHeight,
+                width: newChartDiv.clientWidth
+            };
+            
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
         }
 
         // Event listeners for modal
@@ -217,7 +367,6 @@
                 });
             });
             
-            // Update modal chart if open
             const modalChart = document.querySelector('#modalChartContent > div');
             if (modalChart) {
                 Plotly.relayout(modalChart, {
@@ -228,35 +377,4 @@
         });
     });
 </script>
-
-<style>
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
-    .export-btn {
-        background-color: var(--accent-color);
-        color: var(--secondary-bg);
-        border: none;
-        padding: 8px 16px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: background-color 0.3s ease;
-    }
-
-    .export-btn:hover {
-        background-color: var(--text-color);
-    }
-
-    .export-btn i {
-        font-size: 1rem;
-    }
-</style>
 {% endblock %}
