@@ -20,7 +20,7 @@
         <div class="form-group">
             <textarea name="message" placeholder="Your message here..." required></textarea>
         </div>
-        <button type="submit" class="submit-btn">Submit Feedback</button>
+        <button type="submit" id="submitButton" class="submit-btn">Submit Feedback</button>
     </form>
 </div>
 {% endblock %}
@@ -28,43 +28,48 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    document.getElementById('feedback-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Get the submit button
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const feedbackForm = document.getElementById('feedback-form');
         const submitButton = document.getElementById('submitButton');
-        
-        // If the button is already disabled, return early
-        if (submitButton.disabled) {
-            return;
-        }
-        
-        // Disable the submit button
-        submitButton.disabled = true;
-        submitButton.textContent = 'Submitting...';
 
-        try {
-            const formData = new FormData(this);
-            const response = await fetch('/submit_feedback', {
-                method: 'POST',
-                body: formData
+        if (feedbackForm && submitButton) {
+            feedbackForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // If the button is already disabled, return early
+                if (submitButton.disabled) {
+                    return;
+                }
+                
+                // Disable the submit button
+                submitButton.disabled = true;
+                submitButton.textContent = 'Submitting...';
+
+                try {
+                    const formData = new FormData(this);
+                    const response = await fetch('/submit_feedback', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Feedback submitted successfully!');
+                        this.reset();
+                    } else {
+                        alert(data.message || 'Error submitting feedback. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                } finally {
+                    // Re-enable the submit button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Submit Feedback';
+                }
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                alert('Feedback submitted successfully!');
-                this.reset();
-            } else {
-                alert(data.message || 'Error submitting feedback. Please try again.');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        } finally {
-            // Re-enable the submit button
-            submitButton.disabled = false;
-            submitButton.textContent = 'Submit Feedback';
         }
     });
 </script>
