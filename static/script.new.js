@@ -1,8 +1,3 @@
-/**
- * Core Initialization and Configuration
- * script.new.js - Version 1.0
- */
-
 // Global configuration
 const CONFIG = {
     API_ENDPOINTS: {
