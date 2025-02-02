@@ -1250,39 +1250,3 @@ window.addEventListener('beforeunload', function(e) {
         e.returnValue = '';
     }
 });
-
-document.getElementById('feedback-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Disable the submit button immediately
-    const submitButton = this.querySelector('button[type="submit"]');
-    if (submitButton.disabled) {
-        return; // Prevent duplicate submissions
-    }
-    submitButton.disabled = true;
-    
-    const formData = new FormData(this);
-    console.log('Submitting form data:', Object.fromEntries(formData));
-
-    fetch('/submit_feedback', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Feedback submitted successfully!');
-            this.reset();
-        } else {
-            alert(data.message || 'Error submitting feedback. Please try again.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred. Please try again.');
-    })
-    .finally(() => {
-        // Re-enable the submit button after processing is complete
-        submitButton.disabled = false;
-    });
-});
