@@ -3,9 +3,14 @@
 {% block title %}Phishing Detection Tool{% endblock %}
 
 {% block content %}
-<div class="content-wrapper">
+<div class="content-wrapper container">
     <h1 class="main-title">Detect Phishing Attempts Instantly</h1>
     <p class="subtitle">Enter a URL, domain, IP address, or file hash to analyze.</p>
+    
+    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+        <div class="spinner"></div>
+        <p>Analyzing... Please wait.</p>
+    </div>
     
     <form id="analysis-form" class="analysis-form" onsubmit="return false;">
         <div class="input-group">
