@@ -305,10 +305,6 @@
             Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
         }
     
-        // Initialize main charts
-        initializeCharts();
-        setTimeout(ensureChartsVisible, 500);
-    
         function refreshDashboardCharts() {
             const charts = ['rocCurve', 'prCurve', 'featureImportance', 'modelEvolution', 'vendorAgreement'];
             charts.forEach(chartType => {
@@ -341,6 +337,9 @@
                 }
             });
         }
+        // Then initialize and ensure visibility
+        initializeCharts();
+        setTimeout(ensureChartsVisible, 500);
     
         // Export all data function
         function exportAllData() {
