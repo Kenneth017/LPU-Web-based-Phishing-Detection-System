@@ -1,14 +1,16 @@
-* pages/_auth.css */
-
-/* Hide scrollbar for login page */
-.login-page {
-    overflow: hidden;
+:root {
+    --accent-color: #50E3C2;
+    --accent-color-hover: #3cd1b0;
+    --text-color: #ffffff;
+    --text-color-secondary: #b3b3b3;
+    --border-radius-sm: 4px;
+    --border-radius-lg: 8px;
 }
 
-/* Main container for authentication pages */
+/* Main container */
 .auth-container {
-    position: fixed;
-    top: 60px; /* Height of your navbar */
+    position: absolute;
+    top: 60px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -18,9 +20,10 @@
     background: transparent;
     overflow-y: auto;
     padding: 20px;
+    min-height: calc(100vh - 60px);
 }
 
-/* Authentication card styling */
+/* Card styling */
 .auth-card {
     width: 100%;
     max-width: 400px;
@@ -33,7 +36,7 @@
     margin: auto;
 }
 
-/* Authentication page title */
+/* Title styling */
 .auth-title {
     color: var(--accent-color);
     text-align: center;
@@ -42,20 +45,20 @@
     font-weight: 700;
 }
 
-/* Form group styling */
+/* Form styling */
 .auth-form .form-group {
     margin-bottom: 1.5rem;
+    position: relative;
 }
 
-/* Form labels */
 .auth-form .form-group label {
     display: block;
     margin-bottom: 0.5rem;
     color: var(--text-color-secondary);
     font-weight: 500;
+    font-size: 0.9rem;
 }
 
-/* Form input controls */
 .auth-form .form-control {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -71,23 +74,16 @@
     outline: none;
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px rgba(80, 227, 194, 0.2);
-}
-
-/* Button group container */
-.button-group {
-    margin-top: 2rem;
-    display: flex;
-    gap: 1rem;
-}
-
-/* Button group container */
-.button-group {
-    margin-top: 2rem;
-    display: flex;
-    gap: 1rem;
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Button styling */
+.button-group {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
 .button-group .btn,
 .button-group .btn-primary,
 .button-group .btn-secondary,
@@ -112,13 +108,18 @@
     text-overflow: ellipsis;
 }
 
-/* Style for secondary button */
-.button-group .btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
+.button-group .btn-primary {
+    background-color: var(--accent-color);
     color: var(--text-color);
 }
 
-/* Hover effects */
+.button-group .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Button hover effects */
 .button-group .btn:hover,
 .button-group .btn-primary:hover,
 .button-group .btn-secondary:hover {
@@ -126,72 +127,12 @@
     box-shadow: 0 4px 8px rgba(80, 227, 194, 0.3);
 }
 
-
-
-/* Flash messages */
-.flashes {
-    margin-bottom: 1.5rem;
+.button-group .btn-primary:hover {
+    background-color: var(--accent-color-hover);
 }
 
-.flash-message {
-    background-color: var(--danger-color);
-    color: var(--text-color);
-    padding: 1rem;
-    border-radius: var(--border-radius-sm);
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
-
-/* Content wrapper adjustments for login page */
-.login-page .content-wrapper {
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    box-shadow: none;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .auth-container {
-        padding: 1rem;
-    }
-
-    .auth-card {
-        padding: 1.5rem;
-    }
-}
-
-/* Additional mobile adjustments */
-@media (max-width: 480px) {
-    .auth-title {
-        font-size: 1.75rem;
-    }
-
-    .auth-card {
-        padding: 1.25rem;
-    }
-}
-
-/* Ensure proper display on very small screens */
-@media (max-height: 600px) {
-    .auth-container {
-        position: absolute;
-        height: calc(100vh - 60px);
-    }
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .button-group {
-        flex-direction: column;
-    }
-    
-    .button-group .btn,
-    .button-group .btn-primary,
-    .button-group .btn-secondary,
-    .button-group a.btn {
-        width: 100%;
-    }
+.button-group .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Forgot password link */
@@ -208,98 +149,60 @@
     text-decoration: underline;
 }
 
-/* Style for secondary button */
-.button-group .btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-color);
-}
-
-.button-group .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* Add these to your existing _auth.css file */
-
-/* Input field focus effects */
-.auth-form .form-control:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(80, 227, 194, 0.2);
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Improve form group spacing */
-.auth-form .form-group {
+/* Flash messages */
+.flashes {
     margin-bottom: 1.5rem;
-    position: relative;
 }
 
-/* Label styling */
-.auth-form .form-group label {
-    display: block;
+.flash-message {
+    background-color: var(--danger-color);
+    color: var(--text-color);
+    padding: 1rem;
+    border-radius: var(--border-radius-sm);
     margin-bottom: 0.5rem;
-    color: var(--text-color-secondary);
-    font-weight: 500;
     font-size: 0.9rem;
 }
 
-/* Input styling */
-.auth-form .form-control {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--border-radius-sm);
-    color: var(--text-color);
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
+/* Responsive design */
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 1rem;
+    }
 
-/* Button styling refinements */
-.button-group .btn-primary {
-    background-color: var(--accent-color);
-    color: var(--text-color);
-}
-
-.button-group .btn-secondary {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-color);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Hover effects */
-.button-group .btn-primary:hover {
-    background-color: var(--accent-color-hover);
-    transform: translateY(-2px);
-}
-
-.button-group .btn-secondary:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-}
-
-/* Add these CSS variables to your root if not already present */
-:root {
-    --accent-color: #50E3C2;
-    --accent-color-hover: #3cd1b0;
-    --text-color: #ffffff;
-    --text-color-secondary: #b3b3b3;
-    --border-radius-sm: 4px;
-    --border-radius-lg: 8px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
     .auth-card {
         padding: 1.5rem;
     }
+}
 
+@media (max-width: 480px) {
     .auth-title {
         font-size: 1.75rem;
         margin-bottom: 1.5rem;
     }
 
+    .auth-card {
+        padding: 1.25rem;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .button-group .btn,
+    .button-group .btn-primary,
+    .button-group .btn-secondary,
+    .button-group a.btn {
+        width: 100%;
+    }
+
     .form-group {
         margin-bottom: 1.25rem;
+    }
+}
+
+@media (max-height: 600px) {
+    .auth-container {
+        height: auto;
+        min-height: calc(100vh - 60px);
     }
 }
