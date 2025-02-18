@@ -95,447 +95,463 @@
 <!-- Include Plotly.js -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM fully loaded");
-    console.log("Plotly available:", typeof Plotly !== 'undefined');
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded");
+        console.log("Plotly available:", typeof Plotly !== 'undefined');
+        
+        // Store the chart data globally so it's accessible for the modal
+        let chartData = {
+            rocCurve: null,
+            prCurve: null,
+            featureImportance: null,
+            modelEvolution: null,
+            vendorAgreement: null
+        };
     
-    // Store the chart data globally so it's accessible for the modal
-    let chartData = {
-        rocCurve: null,
-        prCurve: null,
-        featureImportance: null,
-        modelEvolution: null,
-        vendorAgreement: null
-    };
-
-    // Common chart layout settings
-    const commonChartLayout = {
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        font: { 
-            color: '#FFFFFF',
-            family: 'Inter, sans-serif'
-        },
-        xaxis: {
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zerolinecolor: 'rgba(255,255,255,0.1)',
-            linecolor: 'rgba(255,255,255,0.1)'
-        },
-        yaxis: {
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zerolinecolor: 'rgba(255,255,255,0.1)',
-            linecolor: 'rgba(255,255,255,0.1)'
-        }
-    };
-
-    function initializeCharts() {
-        // ROC Curve
-        const rocData = {{ performance_graphs.roc_curve|tojson }};
-        chartData.rocCurve = {
-            data: [{
-                x: rocData.fpr,
-                y: rocData.tpr,
-                type: 'scatter',
-                mode: 'lines',
-                name: `ROC (AUC = ${rocData.auc.toFixed(3)})`,
-                line: {color: '#17BECF'}
-            }],
-            layout: {
-                ...commonChartLayout,
-                title: '',
-                xaxis: {
-                    ...commonChartLayout.xaxis,
-                    title: 'False Positive Rate'
-                },
-                yaxis: {
-                    ...commonChartLayout.yaxis,
-                    title: 'True Positive Rate'
-                },
-                margin: {t: 10, r: 10, b: 30, l: 40},
-                height: 200
+        // Common chart layout settings
+        const commonChartLayout = {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { 
+                color: '#FFFFFF',
+                family: 'Inter, sans-serif'
+            },
+            xaxis: {
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)',
+                linecolor: 'rgba(255,255,255,0.1)'
+            },
+            yaxis: {
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)',
+                linecolor: 'rgba(255,255,255,0.1)'
             }
         };
-        Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout);
-
-        // Precision-Recall Curve
-        const prData = {{ performance_graphs.pr_curve|tojson }};
-        if (prData && prData.precision && prData.recall) {
-            chartData.prCurve = {
+    
+        function initializeCharts() {
+            // ROC Curve
+            const rocData = {{ performance_graphs.roc_curve|tojson }};
+            chartData.rocCurve = {
                 data: [{
-                    x: prData.recall,
-                    y: prData.precision,
+                    x: rocData.fpr,
+                    y: rocData.tpr,
                     type: 'scatter',
                     mode: 'lines',
-                    name: 'Precision-Recall',
-                    line: {color: '#7F7F7F'}
+                    name: `ROC (AUC = ${rocData.auc.toFixed(3)})`,
+                    line: {color: '#17BECF'}
                 }],
                 layout: {
                     ...commonChartLayout,
                     title: '',
                     xaxis: {
                         ...commonChartLayout.xaxis,
-                        title: 'Recall',
-                        range: [0, 1]
+                        title: 'False Positive Rate'
                     },
                     yaxis: {
                         ...commonChartLayout.yaxis,
-                        title: 'Precision',
-                        range: [0, 1]
+                        title: 'True Positive Rate'
                     },
-                    showlegend: true,
                     margin: {t: 10, r: 10, b: 30, l: 40},
                     height: 200
                 }
             };
-            Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout);
-        }
-
-        // Feature Importance
-        const featureData = {{ feature_importance|tojson }};
-        const featureImportanceData = [];
-        for (const category in featureData) {
-            for (const feature in featureData[category]) {
-                featureImportanceData.push({
-                    feature: `${category} - ${feature}`,
-                    importance: featureData[category][feature]
-                });
-            }
-        }
-        chartData.featureImportance = {
-            data: [{
-                x: featureImportanceData.map(d => d.importance),
-                y: featureImportanceData.map(d => d.feature),
-                type: 'bar',
-                orientation: 'h'
-            }],
-            layout: {
-                ...commonChartLayout,
-                title: '',
-                xaxis: {
-                    ...commonChartLayout.xaxis,
-                    title: 'Importance Score'
-                },
-                yaxis: {
-                    ...commonChartLayout.yaxis,
-                    title: '',
-                    automargin: true,
-                    tickfont: {size: 8}
-                },
-                margin: {t: 10, r: 10, b: 30, l: 150},
-                height: 200
-            }
-        };
-        Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
-
-        // Model Evolution
-        const evolutionData = {{ model_evolution|tojson }};
-        chartData.modelEvolution = {
-            data: [{
-                x: evolutionData.dates,
-                y: evolutionData.accuracy,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: 'Accuracy'
-            }],
-            layout: {
-                ...commonChartLayout,
-                title: '',
-                xaxis: {
-                    ...commonChartLayout.xaxis,
-                    title: 'Date'
-                },
-                yaxis: {
-                    ...commonChartLayout.yaxis,
-                    title: 'Accuracy'
-                },
-                margin: {t: 10, r: 10, b: 30, l: 40},
-                height: 200
-            }
-        };
-        Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
-
-        // Vendor Agreement
-        const vendorData = {{ vendor_agreement|tojson }};
-        chartData.vendorAgreement = {
-            data: [{
-                values: Object.values(vendorData),
-                labels: Object.keys(vendorData),
-                type: 'pie'
-            }],
-            layout: {
-                ...commonChartLayout,
-                title: '',
-                margin: {t: 10, r: 10, b: 10, l: 10},
-                height: 200
-            }
-        };
-        Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
-    }
-
-    // Initialize main charts
-    initializeCharts();
-
-    function refreshDashboardCharts() {
-        const charts = ['rocCurve', 'prCurve', 'featureImportance', 'modelEvolution', 'vendorAgreement'];
-        charts.forEach(chartType => {
-            if (chartData[chartType]) {
-                const chartDiv = document.getElementById(chartType);
-                if (chartDiv) {
-                    Plotly.newPlot(chartDiv, chartData[chartType].data, {
-                        ...chartData[chartType].layout,
+            Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout);
+    
+            // Precision-Recall Curve
+            const prData = {{ performance_graphs.pr_curve|tojson }};
+            if (prData && prData.precision && prData.recall) {
+                chartData.prCurve = {
+                    data: [{
+                        x: prData.recall,
+                        y: prData.precision,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: 'Precision-Recall',
+                        line: {color: '#7F7F7F'}
+                    }],
+                    layout: {
                         ...commonChartLayout,
-                        height: 200,
-                        autosize: true
+                        title: '',
+                        xaxis: {
+                            ...commonChartLayout.xaxis,
+                            title: 'Recall',
+                            range: [0, 1]
+                        },
+                        yaxis: {
+                            ...commonChartLayout.yaxis,
+                            title: 'Precision',
+                            range: [0, 1]
+                        },
+                        showlegend: true,
+                        margin: {t: 10, r: 10, b: 30, l: 40},
+                        height: 200
+                    }
+                };
+                Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout);
+            }
+    
+            // Feature Importance
+            const featureData = {{ feature_importance|tojson }};
+            const featureImportanceData = [];
+            for (const category in featureData) {
+                for (const feature in featureData[category]) {
+                    featureImportanceData.push({
+                        feature: `${category} - ${feature}`,
+                        importance: featureData[category][feature]
                     });
                 }
             }
-        });
-    }
-
-    // Export all data function
-    function exportAllData() {
-        let csvContent = "data:text/csv;charset=utf-8,";
-        
-        // Add basic metrics
-        csvContent += "Basic Metrics\n";
-        csvContent += "Metric,Value\n";
-        csvContent += "Total Checks," + "{{ basic_metrics.total_checks }}" + "\n";
-        csvContent += "Detection Rate," + "{{ '%.2f'|format(basic_metrics.detection_rate * 100) }}" + "\n";
-        csvContent += "Phishing Detected," + "{{ basic_metrics.phishing_detected }}" + "\n\n";
-    
-        // Add ROC Curve data
-        csvContent += "ROC Curve Data\n";
-        csvContent += "False Positive Rate,True Positive Rate\n";
-        chartData.rocCurve.data[0].x.forEach((x, i) => {
-            csvContent += x + "," + chartData.rocCurve.data[0].y[i] + "\n";
-        });
-        csvContent += "\n";
-    
-        // Add Precision-Recall data
-        csvContent += "Precision-Recall Curve Data\n";
-        csvContent += "Recall,Precision\n";
-        chartData.prCurve.data[0].x.forEach((x, i) => {
-            csvContent += x + "," + chartData.prCurve.data[0].y[i] + "\n";
-        });
-        csvContent += "\n";
-    
-        // Add Feature Importance data
-        csvContent += "Feature Importance Analysis\n";
-        csvContent += "Feature,Importance Score\n";
-        chartData.featureImportance.data[0].y.forEach((feature, i) => {
-            csvContent += feature + "," + chartData.featureImportance.data[0].x[i] + "\n";
-        });
-        csvContent += "\n";
-    
-        // Add Model Evolution data
-        csvContent += "Model Performance Evolution\n";
-        csvContent += "Date,Accuracy\n";
-        chartData.modelEvolution.data[0].x.forEach((date, i) => {
-            csvContent += date + "," + chartData.modelEvolution.data[0].y[i] + "\n";
-        });
-        csvContent += "\n";
-    
-        // Add Vendor Agreement data
-        csvContent += "Vendor Agreement Analysis\n";
-        csvContent += "Category,Percentage\n";
-        chartData.vendorAgreement.data[0].labels.forEach((label, i) => {
-            csvContent += label + "," + chartData.vendorAgreement.data[0].values[i] + "\n";
-        });
-    
-        // Create and trigger download
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "ml_dashboard_data.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // Add event listener for export button
-    document.getElementById('exportAllData').addEventListener('click', exportAllData);
-
-    // Modal functionality
-    const modal = document.getElementById('chartModal');
-    const modalTitle = document.getElementById('modalChartTitle');
-    const modalContent = document.getElementById('modalChartContent');
-    const closeBtn = modal.querySelector('.close');
-
-    function maximizeChart(cardId) {
-        const card = document.getElementById(cardId);
-        const title = card.querySelector('h3').textContent;
-        const chartType = card.querySelector('.chart-content').id;
-
-        modalTitle.textContent = title;
-        modal.style.display = "flex";
-        modal.classList.add('show');
-
-        const newChartDiv = document.createElement('div');
-        newChartDiv.style.width = '100%';
-        newChartDiv.style.height = '100%';
-        modalContent.innerHTML = '';
-        modalContent.appendChild(newChartDiv);
-
-        // Deep clone the data to prevent reference issues
-        const chartDataCopy = JSON.parse(JSON.stringify(chartData[chartType]));
-
-        let modalLayout = {
-            ...chartDataCopy.layout,
-            ...commonChartLayout,
-            autosize: false,
-            width: modalContent.clientWidth,
-            height: modalContent.clientHeight,
-            font: {
-                size: 14,
-                color: '#FFFFFF'
-            },
-            modebar: {
-                bgcolor: 'rgba(0,0,0,0)',
-                color: '#FFFFFF'
-            }
-        };
-
-        // Specific layout adjustments based on chart type
-        if (chartType === 'featureImportance') {
-            modalLayout = {
-                ...modalLayout,
-                margin: {
-                    l: 300,
-                    r: 50,
-                    t: 50,
-                    b: 100
-                },
-                yaxis: {
-                    tickfont: { 
-                        size: 12,
-                        color: '#FFFFFF'
+            chartData.featureImportance = {
+                data: [{
+                    x: featureImportanceData.map(d => d.importance),
+                    y: featureImportanceData.map(d => d.feature),
+                    type: 'bar',
+                    orientation: 'h'
+                }],
+                layout: {
+                    ...commonChartLayout,
+                    title: '',
+                    xaxis: {
+                        ...commonChartLayout.xaxis,
+                        title: 'Importance Score'
                     },
-                    automargin: true,
-                    showgrid: true,
-                    gridcolor: 'rgba(255,255,255,0.1)'
-                },
-                xaxis: {
-                    tickfont: { 
-                        size: 12,
-                        color: '#FFFFFF'
+                    yaxis: {
+                        ...commonChartLayout.yaxis,
+                        title: '',
+                        automargin: true,
+                        tickfont: {size: 8}
                     },
-                    title: {
-                        text: 'Importance Score',
-                        font: {
-                            size: 14,
-                            color: '#FFFFFF'
-                        }
-                    },
-                    showgrid: true,
-                    gridcolor: 'rgba(255,255,255,0.1)'
-                },
-                plot_bgcolor: 'transparent',
-                paper_bgcolor: 'transparent',
-                bargap: 0.2
+                    margin: {t: 10, r: 10, b: 30, l: 150},
+                    height: 200
+                }
             };
-        } else if (chartType === 'modelEvolution') {
-            modalLayout = {
-                ...modalLayout,
-                margin: {
-                    l: 80,
-                    r: 50,
-                    t: 50,
-                    b: 100
-                },
-                xaxis: {
-                    tickangle: -45,
-                    tickfont: {
-                        size: 12,
-                        color: '#FFFFFF'
+            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
+    
+            // Model Evolution
+            const evolutionData = {{ model_evolution|tojson }};
+            chartData.modelEvolution = {
+                data: [{
+                    x: evolutionData.dates,
+                    y: evolutionData.accuracy,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Accuracy'
+                }],
+                layout: {
+                    ...commonChartLayout,
+                    title: '',
+                    xaxis: {
+                        ...commonChartLayout.xaxis,
+                        title: 'Date'
                     },
-                    title: {
-                        text: 'Date',
-                        font: {
-                            size: 14,
-                            color: '#FFFFFF'
-                        }
+                    yaxis: {
+                        ...commonChartLayout.yaxis,
+                        title: 'Accuracy'
                     },
-                    showgrid: true,
-                    gridcolor: 'rgba(255,255,255,0.1)'
-                },
-                yaxis: {
-                    tickfont: {
-                        size: 12,
-                        color: '#FFFFFF'
-                    },
-                    title: {
-                        text: 'Accuracy',
-                        font: {
-                            size: 14,
-                            color: '#FFFFFF'
-                        }
-                    },
-                    showgrid: true,
-                    gridcolor: 'rgba(255,255,255,0.1)',
-                    range: [0, 1]
-                },
-                plot_bgcolor: 'transparent',
-                paper_bgcolor: 'transparent'
+                    margin: {t: 10, r: 10, b: 30, l: 40},
+                    height: 200
+                }
             };
+            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
+    
+            // Vendor Agreement
+            const vendorData = {{ vendor_agreement|tojson }};
+            chartData.vendorAgreement = {
+                data: [{
+                    values: Object.values(vendorData),
+                    labels: Object.keys(vendorData),
+                    type: 'pie'
+                }],
+                layout: {
+                    ...commonChartLayout,
+                    title: '',
+                    margin: {t: 10, r: 10, b: 10, l: 10},
+                    height: 200
+                }
+            };
+            Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
         }
-
-        const config = {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-            toImageButtonOptions: {
-                format: 'png',
-                filename: `${chartType}_chart`,
-                scale: 2
+    
+        // Initialize main charts
+        initializeCharts();
+    
+        function refreshDashboardCharts() {
+            const charts = ['rocCurve', 'prCurve', 'featureImportance', 'modelEvolution', 'vendorAgreement'];
+            charts.forEach(chartType => {
+                if (chartData[chartType]) {
+                    const chartDiv = document.getElementById(chartType);
+                    if (chartDiv) {
+                        Plotly.newPlot(chartDiv, chartData[chartType].data, {
+                            ...chartData[chartType].layout,
+                            ...commonChartLayout,
+                            height: 200,
+                            autosize: true
+                        });
+                    }
+                }
+            });
+        }
+    
+        // Export all data function
+        function exportAllData() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Add basic metrics
+            csvContent += "Basic Metrics\n";
+            csvContent += "Metric,Value\n";
+            csvContent += "Total Checks," + "{{ basic_metrics.total_checks }}" + "\n";
+            csvContent += "Detection Rate," + "{{ '%.2f'|format(basic_metrics.detection_rate * 100) }}" + "\n";
+            csvContent += "Phishing Detected," + "{{ basic_metrics.phishing_detected }}" + "\n\n";
+        
+            // Add ROC Curve data
+            csvContent += "ROC Curve Data\n";
+            csvContent += "False Positive Rate,True Positive Rate\n";
+            chartData.rocCurve.data[0].x.forEach((x, i) => {
+                csvContent += x + "," + chartData.rocCurve.data[0].y[i] + "\n";
+            });
+            csvContent += "\n";
+        
+            // Add Precision-Recall data
+            csvContent += "Precision-Recall Curve Data\n";
+            csvContent += "Recall,Precision\n";
+            chartData.prCurve.data[0].x.forEach((x, i) => {
+                csvContent += x + "," + chartData.prCurve.data[0].y[i] + "\n";
+            });
+            csvContent += "\n";
+        
+            // Add Feature Importance data
+            csvContent += "Feature Importance Analysis\n";
+            csvContent += "Feature,Importance Score\n";
+            chartData.featureImportance.data[0].y.forEach((feature, i) => {
+                csvContent += feature + "," + chartData.featureImportance.data[0].x[i] + "\n";
+            });
+            csvContent += "\n";
+        
+            // Add Model Evolution data
+            csvContent += "Model Performance Evolution\n";
+            csvContent += "Date,Accuracy\n";
+            chartData.modelEvolution.data[0].x.forEach((date, i) => {
+                csvContent += date + "," + chartData.modelEvolution.data[0].y[i] + "\n";
+            });
+            csvContent += "\n";
+        
+            // Add Vendor Agreement data
+            csvContent += "Vendor Agreement Analysis\n";
+            csvContent += "Category,Percentage\n";
+            chartData.vendorAgreement.data[0].labels.forEach((label, i) => {
+                csvContent += label + "," + chartData.vendorAgreement.data[0].values[i] + "\n";
+            });
+        
+            // Create and trigger download
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "ml_dashboard_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    
+        // Add event listener for export button
+        document.getElementById('exportAllData').addEventListener('click', exportAllData);
+    
+        // Modal functionality
+        const modal = document.getElementById('chartModal');
+        const modalTitle = document.getElementById('modalChartTitle');
+        const modalContent = document.getElementById('modalChartContent');
+        const closeBtn = modal.querySelector('.close');
+    
+        function maximizeChart(cardId) {
+            const card = document.getElementById(cardId);
+            const title = card.querySelector('h3').textContent;
+            const chartType = card.querySelector('.chart-content').id;
+    
+            modalTitle.textContent = title;
+            modal.style.display = "flex";
+            modal.classList.add('show');
+    
+            const newChartDiv = document.createElement('div');
+            newChartDiv.style.width = '100%';
+            newChartDiv.style.height = '100%';
+            modalContent.innerHTML = '';
+            modalContent.appendChild(newChartDiv);
+    
+            // Deep clone the data to prevent reference issues
+            const chartDataCopy = JSON.parse(JSON.stringify(chartData[chartType]));
+    
+            let modalLayout = {
+                ...chartDataCopy.layout,
+                ...commonChartLayout,
+                autosize: false,
+                width: modalContent.clientWidth,
+                height: modalContent.clientHeight,
+                font: {
+                    size: 14,
+                    color: '#FFFFFF'
+                },
+                modebar: {
+                    bgcolor: 'rgba(0,0,0,0)',
+                    color: '#FFFFFF'
+                }
+            };
+    
+            // Specific layout adjustments based on chart type
+            if (chartType === 'featureImportance') {
+                modalLayout = {
+                    ...modalLayout,
+                    margin: {
+                        l: 300,
+                        r: 50,
+                        t: 50,
+                        b: 100
+                    },
+                    yaxis: {
+                        tickfont: { 
+                            size: 12,
+                            color: '#FFFFFF'
+                        },
+                        automargin: true,
+                        showgrid: true,
+                        gridcolor: 'rgba(255,255,255,0.1)'
+                    },
+                    xaxis: {
+                        tickfont: { 
+                            size: 12,
+                            color: '#FFFFFF'
+                        },
+                        title: {
+                            text: 'Importance Score',
+                            font: {
+                                size: 14,
+                                color: '#FFFFFF'
+                            }
+                        },
+                        showgrid: true,
+                        gridcolor: 'rgba(255,255,255,0.1)'
+                    },
+                    plot_bgcolor: 'transparent',
+                    paper_bgcolor: 'transparent',
+                    bargap: 0.2
+                };
+            } else if (chartType === 'modelEvolution') {
+                modalLayout = {
+                    ...modalLayout,
+                    margin: {
+                        l: 80,
+                        r: 50,
+                        t: 50,
+                        b: 100
+                    },
+                    xaxis: {
+                        tickangle: -45,
+                        tickfont: {
+                            size: 12,
+                            color: '#FFFFFF'
+                        },
+                        title: {
+                            text: 'Date',
+                            font: {
+                                size: 14,
+                                color: '#FFFFFF'
+                            }
+                        },
+                        showgrid: true,
+                        gridcolor: 'rgba(255,255,255,0.1)'
+                    },
+                    yaxis: {
+                        tickfont: {
+                            size: 12,
+                            color: '#FFFFFF'
+                        },
+                        title: {
+                            text: 'Accuracy',
+                            font: {
+                                size: 14,
+                                color: '#FFFFFF'
+                            }
+                        },
+                        showgrid: true,
+                        gridcolor: 'rgba(255,255,255,0.1)',
+                        range: [0, 1]
+                    },
+                    plot_bgcolor: 'transparent',
+                    paper_bgcolor: 'transparent'
+                };
             }
-        };
-
-        setTimeout(() => {
-            Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config)
-                .then(() => {
-                    Plotly.Plots.resize(newChartDiv);
-                })
-                .catch(error => {
-                    console.error('Error plotting chart:', error);
-                    Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config);
-                });
-        }, 100);
-    }
-
-    // Modal event listeners
-    closeBtn.onclick = () => {
-        modal.classList.remove('show');
-        setTimeout(() => {
-            modal.style.display = "none";
-            refreshDashboardCharts();
-        }, 300);
-    };
-
-    window.onclick = (event) => {
-        if (event.target == modal) {
+    
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                toImageButtonOptions: {
+                    format: 'png',
+                    filename: `${chartType}_chart`,
+                    scale: 2
+                }
+            };
+    
+            setTimeout(() => {
+                Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config)
+                    .then(() => {
+                        Plotly.Plots.resize(newChartDiv);
+                    })
+                    .catch(error => {
+                        console.error('Error plotting chart:', error);
+                        Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config);
+                    });
+            }, 100);
+        }
+    
+        // Modal event listeners
+        closeBtn.onclick = () => {
             modal.classList.remove('show');
             setTimeout(() => {
                 modal.style.display = "none";
                 refreshDashboardCharts();
             }, 300);
-        }
-    };
-
-    // Maximize button listeners
-    document.querySelectorAll('.maximize-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            maximizeChart(this.closest('.chart-card').id);
+        };
+    
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = "none";
+                    refreshDashboardCharts();
+                }, 300);
+            }
+        };
+    
+        // Maximize button listeners
+        document.querySelectorAll('.maximize-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                maximizeChart(this.closest('.chart-card').id);
+            });
         });
-    });
-
-    // Window resize handler
-    let resizeTimeout;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(function() {
+    
+        // Window resize handler
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                if (modal.style.display === "flex") {
+                    const modalChart = modalContent.querySelector('div');
+                    if (modalChart) {
+                        Plotly.relayout(modalChart, {
+                            'width': modalContent.clientWidth,
+                            'height': modalContent.clientHeight
+                        });
+                    }
+                } else {
+                    refreshDashboardCharts();
+                }
+            }, 250); // Debounce resize event
+        });
+    
+        // Function to handle window resize
+        function handleResize() {
             if (modal.style.display === "flex") {
                 const modalChart = modalContent.querySelector('div');
                 if (modalChart) {
@@ -547,31 +563,17 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 refreshDashboardCharts();
             }
-        }, 250); // Debounce resize event
-    });
-
-    // Function to handle window resize
-    function handleResize() {
-        if (modal.style.display === "flex") {
-            const modalChart = modalContent.querySelector('div');
-            if (modalChart) {
-                Plotly.relayout(modalChart, {
-                    'width': modalContent.clientWidth,
-                    'height': modalContent.clientHeight
-                });
-            }
-        } else {
-            refreshDashboardCharts();
         }
-    }
-
-    // Add event listener for window resize with debounce
-    let resizeTimer;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(handleResize, 250);
+    
+        // Add event listener for window resize with debounce
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(handleResize, 250);
+        });
+    
+        // Initial call to set up charts
+        handleResize();
     });
-
-    // Initial call to set up charts
-    handleResize();
-});
+</script>
+{% endblock %}
