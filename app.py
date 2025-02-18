@@ -498,14 +498,18 @@ def login_required(func):
     return decorated_view
 
 def log_user_activity(username, action):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO user_activity_log (username, action, timestamp)
-        VALUES (?, ?, ?)
-    """, (username, action, get_singapore_time()))
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO user_activity_log (username, action, timestamp)
+            VALUES (?, ?, ?)
+        """, (username, action, get_singapore_time()))
+        conn.commit()
+        conn.close()
+        logger.info(f"Logged user activity: {username} - {action}")
+    except Exception as e:
+        logger.error(f"Error logging user activity: {str(e)}")
 
 @app.route('/admin_dashboard')
 @login_required
