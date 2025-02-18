@@ -72,3 +72,10 @@
     transform: translateY(-100%) scale(0.85);
     color: var(--accent-color);
 }
+
+/* Add this to your existing _forms.css */
+.loading-indicator {
+    display: grid;
+    place-items: center;
+    min-height: 200px;
+}
