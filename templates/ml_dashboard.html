@@ -203,8 +203,9 @@
                     });
                 }
             }
-            featureImportanceData.sort((a, b) => b.importance - a.importance);  // Sort by importance
+            featureImportanceData.sort((a, b) => b.importance - a.importance);
         
+            // Store the data for Feature Importance
             chartData.featureImportance = {
                 data: [{
                     x: featureImportanceData.map(d => d.importance),
@@ -217,7 +218,6 @@
                 }],
                 layout: {
                     ...commonChartLayout,
-                    title: '',
                     xaxis: {
                         ...commonChartLayout.xaxis,
                         title: 'Importance Score',
@@ -230,17 +230,21 @@
                         tickfont: { size: 8 }
                     },
                     margin: {t: 10, r: 10, b: 50, l: 250},
-                    height: 400,  // Increased height
+                    height: 200,
                     bargap: 0.2,
-                    showlegend: false,
-                    autosize: true,
-                    responsive: true
+                    showlegend: false
                 }
             };
-            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
-            
+        
+            // Create Feature Importance chart with a delay
+            setTimeout(() => {
+                Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
+            }, 100);
+        
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
+            
+            // Store the data for Model Evolution
             chartData.modelEvolution = {
                 data: [{
                     x: evolutionData.dates,
@@ -259,7 +263,6 @@
                 }],
                 layout: {
                     ...commonChartLayout,
-                    title: '',
                     xaxis: {
                         ...commonChartLayout.xaxis,
                         title: 'Date',
@@ -274,12 +277,14 @@
                         tickfont: { size: 10 }
                     },
                     margin: {t: 10, r: 30, b: 80, l: 50},
-                    height: 300,  // Increased height
-                    autosize: true,
-                    responsive: true
+                    height: 200
                 }
             };
-            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
+        
+            // Create Model Evolution chart with a delay
+            setTimeout(() => {
+                Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
+            }, 100);
     
             // Vendor Agreement
             const vendorData = {{ vendor_agreement|tojson }};
