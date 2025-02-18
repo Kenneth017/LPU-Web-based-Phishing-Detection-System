@@ -70,16 +70,24 @@
     .verdict-phishing { color: #f44336; }
     .verdict-malicious { color: #ff9800; }
     .verdict-suspicious { color: #ffc107; }
+    }
+    
+    * Add any additional styles here */
+    .export-btn {
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
     <h1>Admin Dashboard</h1>
+    
+    <a href="{{ url_for('export_logs') }}" class="btn btn-primary export-btn">Export Logs (CSV)</a>
 
     <div class="dashboard-container">
         <div class="dashboard-card">
-            <h2 class="card-title">Analysis Metrics</h2>
+            <h2 class="card-title">Analysis Metrics (Last 90 Days)</h2>
             <div class="stat-grid">
                 <div class="stat-item">
                     <div class="stat-value">{{ metrics.total_analyses }}</div>
@@ -101,7 +109,7 @@
         </div>
 
         <div class="dashboard-card">
-            <h2 class="card-title">Detection Rates</h2>
+            <h2 class="card-title">Detection Rates (Last 90 Days)</h2>
             <div class="stat-grid">
                 <div class="stat-item">
                     <div class="stat-value">{{ "%.1f"|format(detection_rates.safe_rate) }}%</div>
@@ -124,7 +132,7 @@
     </div>
 
     <div class="dashboard-card">
-        <h2 class="card-title">User Activity Log</h2>
+        <h2 class="card-title">User Activity Log (Last 90 Days)</h2>
         <table class="logs-table">
             <thead>
                 <tr>
@@ -146,7 +154,7 @@
     </div>
 
     <div class="dashboard-card">
-        <h2 class="card-title">Recent Analysis Activities</h2>
+        <h2 class="card-title">Recent Analysis Activities (Last 90 Days)</h2>
         <table class="logs-table">
             <thead>
                 <tr>
