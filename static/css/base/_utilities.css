@@ -88,3 +88,25 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+.animated-element {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.skeleton-loader {
+    background: linear-gradient(
+        90deg,
+        var(--glass-bg) 25%,
+        var(--glass-border) 50%,
+        var(--glass-bg) 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+/* Improve focus accessibility */
+:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
