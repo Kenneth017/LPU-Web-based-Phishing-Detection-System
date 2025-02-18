@@ -363,11 +363,17 @@
                 ...chartData[chartType].layout,
                 ...commonChartLayout,
                 autosize: true,
+                height: modalContent.clientHeight, // Set explicit height
+                width: modalContent.clientWidth,   // Set explicit width
                 margin: {
-                    l: 50,
-                    r: 30,
-                    t: 10,
-                    b: 50
+                    l: 80,  // Increased left margin
+                    r: 50,  // Increased right margin
+                    t: 30,  // Increased top margin
+                    b: 80   // Increased bottom margin
+                },
+                font: {
+                    size: 14, // Increased font size
+                    color: '#FFFFFF'
                 },
                 modebar: {
                     bgcolor: 'rgba(0,0,0,0)',
@@ -375,7 +381,24 @@
                 }
             };
         
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {responsive: true});
+            // Adjust specific layouts based on chart type
+            if (chartType === 'featureImportance') {
+                modalLayout.yaxis = {
+                    ...modalLayout.yaxis,
+                    tickfont: { size: 12 }, // Increased tick font size
+                    automargin: true
+                };
+                modalLayout.margin.l = 200; // Extra space for feature names
+            }
+        
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+            };
+        
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, config);
         }
     
         // Modal event listeners
