@@ -1,34 +1,174 @@
 {% extends "base.html" %}
 
+{% block title %}Admin Dashboard - Cyber Phishing Detection{% endblock %}
+
+{% block extra_head %}
+<style>
+    .dashboard-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-card {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+        font-size: 1.2rem;
+        color: var(--accent-color);
+        margin-bottom: 1rem;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--text-color);
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-color-secondary);
+    }
+
+    .logs-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .logs-table th,
+    .logs-table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logs-table th {
+        background: rgba(255, 255, 255, 0.1);
+        font-weight: 600;
+    }
+
+    .verdict-safe { color: #4caf50; }
+    .verdict-phishing { color: #f44336; }
+    .verdict-malicious { color: #ff9800; }
+    .verdict-suspicious { color: #ffc107; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Admin Dashboard</h2>
+<div class="container">
+    <h1>Admin Dashboard</h1>
 
-<h3>Analysis Metrics</h3>
-<ul>
-    <li>Total Analyses: {{ metrics.total_analyses }}</li>
-    <li>Phishing: {{ metrics.phishing_count }}</li>
-    <li>Malicious: {{ metrics.malicious_count }}</li>
-    <li>Suspicious: {{ metrics.suspicious_count }}</li>
-    <li>Safe: {{ metrics.safe_count }}</li>
-</ul>
+    <div class="dashboard-container">
+        <div class="dashboard-card">
+            <h2 class="card-title">Analysis Metrics</h2>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{{ metrics.total_analyses }}</div>
+                    <div class="stat-label">Total Analyses</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ metrics.safe_count }}</div>
+                    <div class="stat-label">Safe</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ metrics.phishing_count }}</div>
+                    <div class="stat-label">Phishing</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ metrics.malicious_count }}</div>
+                    <div class="stat-label">Malicious</div>
+                </div>
+            </div>
+        </div>
 
-<h3>Recent User Activity</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Username</th>
-            <th>Action</th>
-            <th>Timestamp</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for activity in activity_log %}
-        <tr>
-            <td>{{ activity.username }}</td>
-            <td>{{ activity.action }}</td>
-            <td>{{ activity.timestamp }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+        <div class="dashboard-card">
+            <h2 class="card-title">Detection Rates</h2>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{{ "%.1f"|format(detection_rates.safe_rate) }}%</div>
+                    <div class="stat-label">Safe Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ "%.1f"|format(detection_rates.phishing_rate) }}%</div>
+                    <div class="stat-label">Phishing Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ "%.1f"|format(detection_rates.malicious_rate) }}%</div>
+                    <div class="stat-label">Malicious Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ "%.1f"|format(detection_rates.suspicious_rate) }}%</div>
+                    <div class="stat-label">Suspicious Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h2 class="card-title">User Activity Log</h2>
+        <table class="logs-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Action</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in activity_log %}
+                <tr>
+                    <td>{{ activity.username }}</td>
+                    <td>{{ activity.action }}</td>
+                    <td>{{ activity.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2 class="card-title">Recent Analysis Activities</h2>
+        <table class="logs-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Input</th>
+                    <th>Verdict</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in analysis_activities %}
+                <tr>
+                    <td>{{ activity.username }}</td>
+                    <td>{{ activity.input_string }}</td>
+                    <td class="verdict-{{ activity.main_verdict.lower() }}">
+                        {{ activity.main_verdict }}
+                    </td>
+                    <td>{{ activity.analysis_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
