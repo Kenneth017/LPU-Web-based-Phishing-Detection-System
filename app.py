@@ -572,21 +572,20 @@ async def admin_dashboard():
             'suspicious_rate': (metrics['suspicious_count'] / total_analyses) * 100
         }
 
-        # Pagination for analysis activities
-        try:
-            page = request.args.get(get_page_parameter(), type=int, default=1)
-        except:
-            page = request.args.get('page', type=int, default=1)
-        
+        # Pagination
+        page = request.args.get('page', 1, type=int)
         per_page = 25
-        offset = (page - 1) * per_page
         total = len(all_analysis_activities)
-        analysis_activities = all_analysis_activities[offset: offset + per_page]
         
-        try:
-            pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap4')
-        except:
-            pagination = None
+        # Calculate start and end indices for the current page
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        
+        # Get activities for current page
+        analysis_activities = all_analysis_activities[start_idx:end_idx]
+        
+        # Calculate total pages
+        total_pages = (total + per_page - 1) // per_page
 
         return await render_template(
             'admin_dashboard.html',
@@ -594,10 +593,12 @@ async def admin_dashboard():
             metrics=metrics,
             detection_rates=detection_rates,
             analysis_activities=analysis_activities,
-            pagination=pagination,
-            page=page,
+            current_page=page,
+            total_pages=total_pages,
+            total_items=total,
             per_page=per_page,
-            total=total
+            start_idx=start_idx + 1,
+            end_idx=min(start_idx + per_page, total)
         )
 
     except Exception as e:
