@@ -13,7 +13,7 @@
     {% endif %}
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% if request.endpoint in ['login', 'home', 'index', 'reset_password_request', 'reset_password', 'create_user', 'reset'] %}no-transition{% else %}transition-page{% endif %}">
+<body class="{% if request.endpoint in ['login', 'home', 'index', 'reset_password_request', 'reset_password', 'create_user', 'reset', 'register'] %}no-transition{% else %}transition-page{% endif %}">
     <div class="page-transition-overlay"></div>
     <nav class="navbar">
         <div class="navbar-brand">
