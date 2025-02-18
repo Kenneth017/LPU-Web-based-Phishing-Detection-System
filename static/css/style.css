@@ -208,6 +208,13 @@ a:hover {
     }
 }
 
+/* Add after existing media queries */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1320px;
+    }
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 10px;
@@ -277,6 +284,21 @@ a:hover {
 
     .no-print {
         display: none !important;
+    }
+}
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    tr, img { 
+        page-break-inside: avoid; 
+    }
+    
+    a[href]::after {
+        content: " (" attr(href) ")";
     }
 }
 
