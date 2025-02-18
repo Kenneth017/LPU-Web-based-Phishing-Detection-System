@@ -1,4 +1,4 @@
-/* pages/_auth.css */
+* pages/_auth.css */
 
 /* Hide scrollbar for login page */
 .login-page {
@@ -206,24 +206,4 @@
 
 .button-group .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.2);
-}
-
-/* Override transition effects for auth pages */
-.auth-container,
-.auth-card {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-}
-
-/* Content wrapper adjustments for auth pages */
-.login-page .content-wrapper,
-.content-wrapper .auth-container {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    box-shadow: none;
 }
