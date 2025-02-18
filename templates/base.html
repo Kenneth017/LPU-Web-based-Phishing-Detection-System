@@ -14,6 +14,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if request.endpoint == 'login' %}login-page{% else %}transition-page{% endif %}">
+<body class="{% if request.endpoint == 'login' %}login-page{% elif request.endpoint in ['reset_password', 'create_user', 'forgot_password'] %}no-transition{% else %}transition-page{% endif %}" data-page="{{ request.endpoint }}">
     <div class="page-transition-overlay"></div>
     <nav class="navbar">
         <div class="navbar-brand">
