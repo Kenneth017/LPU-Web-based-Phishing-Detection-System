@@ -206,27 +206,40 @@
                     x: featureImportanceData.map(d => d.importance),
                     y: featureImportanceData.map(d => d.feature),
                     type: 'bar',
-                    orientation: 'h'
+                    orientation: 'h',
+                    marker: {
+                        color: '#17BECF'
+                    }
                 }],
                 layout: {
                     ...commonChartLayout,
                     title: '',
                     xaxis: {
                         ...commonChartLayout.xaxis,
-                        title: 'Importance Score'
+                        title: 'Importance Score',
+                        tickfont: { size: 10 }
                     },
                     yaxis: {
                         ...commonChartLayout.yaxis,
                         title: '',
                         automargin: true,
-                        tickfont: {size: 8}
+                        tickfont: { size: 8 }
                     },
-                    margin: {t: 10, r: 10, b: 30, l: 150},
-                    height: 200
+                    margin: {t: 10, r: 10, b: 50, l: 250}, // Increased left margin
+                    height: 200,
+                    bargap: 0.2,
+                    showlegend: false
                 }
             };
-            Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
-    
+            
+            // Add a small delay for Feature Importance chart
+            setTimeout(() => {
+                Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout)
+                    .then(() => {
+                        Plotly.relayout('featureImportance', { 'autosize': true });
+                    });
+            }, 100);
+            
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
             chartData.modelEvolution = {
@@ -235,24 +248,44 @@
                     y: evolutionData.accuracy,
                     type: 'scatter',
                     mode: 'lines+markers',
-                    name: 'Accuracy'
+                    name: 'Accuracy',
+                    line: {
+                        color: '#17BECF',
+                        width: 2
+                    },
+                    marker: {
+                        size: 8,
+                        color: '#17BECF'
+                    }
                 }],
                 layout: {
                     ...commonChartLayout,
                     title: '',
                     xaxis: {
                         ...commonChartLayout.xaxis,
-                        title: 'Date'
+                        title: 'Date',
+                        tickangle: -45,
+                        tickfont: { size: 10 }
                     },
                     yaxis: {
                         ...commonChartLayout.yaxis,
-                        title: 'Accuracy'
+                        title: 'Accuracy',
+                        tickformat: '.2%',
+                        range: [0, 1],
+                        tickfont: { size: 10 }
                     },
-                    margin: {t: 10, r: 10, b: 30, l: 40},
+                    margin: {t: 10, r: 30, b: 80, l: 50}, // Increased bottom margin for rotated labels
                     height: 200
                 }
             };
-            Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
+            
+            // Add a small delay for Model Evolution chart
+            setTimeout(() => {
+                Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout)
+                    .then(() => {
+                        Plotly.relayout('modelEvolution', { 'autosize': true });
+                    });
+            }, 100);
     
             // Vendor Agreement
             const vendorData = {{ vendor_agreement|tojson }};
@@ -274,6 +307,7 @@
     
         // Initialize main charts
         initializeCharts();
+        setTimeout(ensureChartsVisible, 500);
     
         function refreshDashboardCharts() {
             const charts = ['rocCurve', 'prCurve', 'featureImportance', 'modelEvolution', 'vendorAgreement'];
@@ -287,6 +321,22 @@
                             height: 200,
                             autosize: true
                         });
+                    }
+                }
+            });
+        }
+
+        // Add this after your refreshDashboardCharts function
+        function ensureChartsVisible() {
+            const charts = ['featureImportance', 'modelEvolution'];
+            charts.forEach(chartId => {
+                const chart = document.getElementById(chartId);
+                if (chart && !chart.innerHTML.trim()) {
+                    if (chartData[chartId]) {
+                        Plotly.newPlot(chartId, chartData[chartId].data, chartData[chartId].layout)
+                            .then(() => {
+                                Plotly.relayout(chartId, { 'autosize': true });
+                            });
                     }
                 }
             });
