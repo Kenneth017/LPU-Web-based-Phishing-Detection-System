@@ -359,20 +359,23 @@
             modalContent.innerHTML = '';
             modalContent.appendChild(newChartDiv);
         
+            // Deep clone the data to prevent reference issues
+            const chartDataCopy = JSON.parse(JSON.stringify(chartData[chartType]));
+        
             const modalLayout = {
-                ...chartData[chartType].layout,
+                ...chartDataCopy.layout,
                 ...commonChartLayout,
                 autosize: true,
-                height: modalContent.clientHeight, // Set explicit height
-                width: modalContent.clientWidth,   // Set explicit width
+                height: modalContent.clientHeight,
+                width: modalContent.clientWidth,
                 margin: {
-                    l: 80,  // Increased left margin
-                    r: 50,  // Increased right margin
-                    t: 30,  // Increased top margin
-                    b: 80   // Increased bottom margin
+                    l: 80,
+                    r: 50,
+                    t: 30,
+                    b: 80
                 },
                 font: {
-                    size: 14, // Increased font size
+                    size: 14,
                     color: '#FFFFFF'
                 },
                 modebar: {
@@ -381,24 +384,60 @@
                 }
             };
         
-            // Adjust specific layouts based on chart type
+            // Special handling for Feature Importance Analysis
             if (chartType === 'featureImportance') {
                 modalLayout.yaxis = {
                     ...modalLayout.yaxis,
-                    tickfont: { size: 12 }, // Increased tick font size
+                    tickfont: { size: 12 },
+                    automargin: true,
+                    tickangle: 0,
+                    side: 'left'
+                };
+                modalLayout.margin.l = 250; // Increased space for feature names
+                modalLayout.height = Math.max(modalContent.clientHeight, chartDataCopy.data[0].y.length * 30); // Adjust height based on number of features
+            }
+        
+            // Special handling for Model Evolution
+            if (chartType === 'modelEvolution') {
+                modalLayout.xaxis = {
+                    ...modalLayout.xaxis,
+                    tickangle: -45,
                     automargin: true
                 };
-                modalLayout.margin.l = 200; // Extra space for feature names
+                modalLayout.yaxis = {
+                    ...modalLayout.yaxis,
+                    tickformat: '.2%',
+                    range: [0, 1]
+                };
             }
         
             const config = {
                 responsive: true,
                 displayModeBar: true,
                 displaylogo: false,
-                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                toImageButtonOptions: {
+                    format: 'png',
+                    filename: `${chartType}_chart`,
+                    height: modalContent.clientHeight,
+                    width: modalContent.clientWidth,
+                    scale: 2
+                }
             };
         
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, config);
+            // Use Promise to ensure chart is fully rendered
+            Promise.resolve().then(() => {
+                return Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config);
+            }).then(() => {
+                // Force a reflow after plotting
+                window.dispatchEvent(new Event('resize'));
+            }).catch(error => {
+                console.error('Error plotting chart:', error);
+                // Fallback rendering
+                setTimeout(() => {
+                    Plotly.newPlot(newChartDiv, chartDataCopy.data, modalLayout, config);
+                }, 100);
+            });
         }
     
         // Modal event listeners
@@ -436,11 +475,23 @@
         
             if (modal.style.display === "flex") {
                 const modalChart = modalContent.querySelector('div');
-                if (modalChart) {
-                    Plotly.relayout(modalChart, {
+                const chartType = modalTitle.textContent.includes('Feature Importance') ? 'featureImportance' : 
+                                 modalTitle.textContent.includes('Model Performance') ? 'modelEvolution' : null;
+                
+                if (modalChart && chartType) {
+                    const layout = {
                         ...commonChartLayout,
-                        'autosize': true
-                    });
+                        'autosize': true,
+                        'height': modalContent.clientHeight,
+                        'width': modalContent.clientWidth
+                    };
+                    
+                    if (chartType === 'featureImportance') {
+                        layout.margin = { l: 250, r: 50, t: 30, b: 80 };
+                        layout.height = Math.max(modalContent.clientHeight, chartData[chartType].data[0].y.length * 30);
+                    }
+                    
+                    Plotly.relayout(modalChart, layout);
                 }
             }
         });
