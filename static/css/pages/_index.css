@@ -74,9 +74,15 @@
 }
 
 /* Container styles */
-.content-wrapper {
+.index-container .content-wrapper {
     max-width: 100%;
     padding: 2rem;
+}
+
+/* Ensure index page content stays visible */
+body[data-page="index"] .content-wrapper {
+    opacity: 1 !important;
+    transform: none !important;
 }
 
 /* Recent Checks Section */
