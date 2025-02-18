@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<h3>Analysis Metrics</h3>
+<ul>
+    <li>Total Analyses: {{ metrics.total_analyses }}</li>
+    <li>Phishing: {{ metrics.phishing_count }}</li>
+    <li>Malicious: {{ metrics.malicious_count }}</li>
+    <li>Suspicious: {{ metrics.suspicious_count }}</li>
+    <li>Safe: {{ metrics.safe_count }}</li>
+</ul>
+
+<h3>Recent User Activity</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+            <th>Timestamp</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for activity in activity_log %}
+        <tr>
+            <td>{{ activity.username }}</td>
+            <td>{{ activity.action }}</td>
+            <td>{{ activity.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
