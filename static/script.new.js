@@ -1250,3 +1250,66 @@ window.addEventListener('beforeunload', function(e) {
         e.returnValue = '';
     }
 });
+
+// Page Transition Handler
+class PageTransitionHandler {
+    constructor() {
+        this.overlay = document.querySelector('.page-transition-overlay');
+        this.links = document.querySelectorAll('.nav-link');
+        this.contentWrapper = document.querySelector('.content-wrapper');
+        
+        this.init();
+    }
+
+    init() {
+        // Add ripple effect to navigation links
+        this.links.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Create ripple effect
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                const rect = link.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                ripple.style.left = `${x}px`;
+                ripple.style.top = `${y}px`;
+                link.appendChild(ripple);
+                
+                // Start page transition
+                this.transitionToPage(link.href);
+                
+                // Remove ripple after animation
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+
+        // Show content with animation when page loads
+        window.addEventListener('load', () => {
+            this.contentWrapper.classList.add('visible');
+        });
+    }
+
+    async transitionToPage(href) {
+        // Start transition animation
+        this.overlay.classList.add('active');
+        this.contentWrapper.classList.remove('visible');
+
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Navigate to new page
+        window.location.href = href;
+    }
+}
+
+// Initialize page transitions
+document.addEventListener('DOMContentLoaded', () => {
+    new PageTransitionHandler();
+});
+
+// Handle back/forward browser navigation
+window.addEventListener('popstate', () => {
+    document.querySelector('.content-wrapper').classList.add('visible');
+});
