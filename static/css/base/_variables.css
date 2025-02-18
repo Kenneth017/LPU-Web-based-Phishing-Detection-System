@@ -29,4 +29,18 @@
     --gradient-dark: linear-gradient(135deg, #0A0E29 0%, #1A1F35 100%);
     --glass-bg: rgba(255, 255, 255, 0.1);
     --glass-border: rgba(255, 255, 255, 0.2);
+
+    /* Add new RGB values */
+    --accent-color-rgb: 80, 227, 194;
+    --accent-color-alpha: rgba(var(--accent-color-rgb), 0.2);
+    
+    /* Add spacing system */
+    --space-unit: 0.25rem;
+    --space-1: calc(var(--space-unit) * 1);
+    --space-2: calc(var(--space-unit) * 2);
+    
+    /* Add dark mode support */
+    @media (prefers-color-scheme: dark) {
+        --primary-bg: #0A0E29;
+        --text-color: #FFFFFF;
 }
