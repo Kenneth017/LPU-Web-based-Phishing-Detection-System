@@ -127,6 +127,29 @@
         font-size: 2rem;
         font-weight: 700;
     }
+
+    .pagination-container {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    }
+    
+    .pagination-page-info {
+        margin-top: 1rem;
+        text-align: center;
+        color: var(--text-color-secondary);
+    }
+    
+    .pagination .page-link {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--text-color);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
 </style>
 {% endblock %}
 
