@@ -97,7 +97,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DOM fully loaded");
-        console.log("Plotly available:", typeof Plotly !== 'undefined');
+        console.log("Plotly version:", Plotly.version);
         
         let chartData = {
             rocCurve: null,
@@ -127,6 +127,13 @@
         };
     
         function initializeCharts() {
+            console.log("Initializing charts...");
+            console.log("ROC Data:", {{ performance_graphs.roc_curve|tojson }});
+            console.log("PR Data:", {{ performance_graphs.pr_curve|tojson }});
+            console.log("Feature Importance Data:", {{ feature_importance|tojson }});
+            console.log("Model Evolution Data:", {{ model_evolution|tojson }});
+            console.log("Vendor Agreement Data:", {{ vendor_agreement|tojson }});
+
             // ROC Curve
             const rocData = {{ performance_graphs.roc_curve|tojson }};
             chartData.rocCurve = {
@@ -140,7 +147,10 @@
                 }],
                 layout: {
                     ...commonChartLayout,
-                    title: '',
+                    title: {
+                        text: 'ROC Curve',
+                        font: { size: 16 }
+                    },
                     xaxis: {
                         ...commonChartLayout.xaxis,
                         title: 'False Positive Rate'
@@ -149,8 +159,8 @@
                         ...commonChartLayout.yaxis,
                         title: 'True Positive Rate'
                     },
-                    margin: {t: 10, r: 10, b: 30, l: 40},
-                    height: 200,
+                    margin: {t: 30, r: 20, b: 40, l: 50},
+                    height: 300,
                     autosize: true,
                     responsive: true
                 }
@@ -171,7 +181,10 @@
                     }],
                     layout: {
                         ...commonChartLayout,
-                        title: '',
+                        title: {
+                            text: 'Precision-Recall Curve',
+                            font: { size: 16 }
+                        },
                         xaxis: {
                             ...commonChartLayout.xaxis,
                             title: 'Recall',
@@ -183,8 +196,8 @@
                             range: [0, 1]
                         },
                         showlegend: true,
-                        margin: {t: 10, r: 10, b: 30, l: 40},
-                        height: 200,
+                        margin: {t: 30, r: 20, b: 40, l: 50},
+                        height: 300,
                         autosize: true,
                         responsive: true
                     }
@@ -195,7 +208,7 @@
             // Feature Importance
             const featureData = {{ feature_importance|tojson }};
             console.log("Feature Importance Data:", featureData);
-            
+
             if (featureData && Object.keys(featureData).length > 0) {
                 const featureImportanceData = Object.entries(featureData).flatMap(([category, features]) => 
                     Object.entries(features).map(([feature, importance]) => ({
@@ -203,7 +216,7 @@
                         importance
                     }))
                 ).sort((a, b) => b.importance - a.importance);
-            
+
                 chartData.featureImportance = {
                     data: [{
                         x: featureImportanceData.map(d => d.importance),
@@ -227,23 +240,30 @@
                             automargin: true,
                             tickfont: { size: 8 }
                         },
-                        margin: {t: 10, r: 10, b: 50, l: 250},
-                        height: 400,
+                        margin: {l: 250, r: 20, t: 30, b: 50},
+                        height: 500,  // Increased height
                         bargap: 0.2,
-                        showlegend: false
+                        showlegend: false,
+                        title: {
+                            text: 'Feature Importance Analysis',
+                            font: {
+                                size: 16
+                            }
+                        }
                     }
                 };
-            
+
                 Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
             } else {
                 console.error("Feature Importance data is empty or invalid");
+                document.getElementById('featureImportance').innerHTML = '<p style="color: white; text-align: center;">No data available for Feature Importance Analysis</p>';
             }
         
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
             console.log("Model Evolution Data:", evolutionData);
-            
-            if (evolutionData && evolutionData.dates && evolutionData.accuracy) {
+
+            if (evolutionData && evolutionData.dates && evolutionData.accuracy && evolutionData.dates.length > 0) {
                 chartData.modelEvolution = {
                     data: [{
                         x: evolutionData.dates,
@@ -275,14 +295,21 @@
                             range: [0, 1],
                             tickfont: { size: 10 }
                         },
-                        margin: {t: 10, r: 30, b: 80, l: 50},
-                        height: 300
+                        margin: {l: 50, r: 20, t: 30, b: 80},
+                        height: 300,
+                        title: {
+                            text: 'Model Performance Evolution',
+                            font: {
+                                size: 16
+                            }
+                        }
                     }
                 };
-            
+
                 Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
             } else {
                 console.error("Model Evolution data is empty or invalid");
+                document.getElementById('modelEvolution').innerHTML = '<p style="color: white; text-align: center;">No data available for Model Performance Evolution</p>';
             }
     
             // Vendor Agreement
@@ -295,9 +322,12 @@
                 }],
                 layout: {
                     ...commonChartLayout,
-                    title: '',
-                    margin: {t: 10, r: 10, b: 10, l: 10},
-                    height: 200,
+                    title: {
+                        text: 'Vendor Agreement Analysis',
+                        font: { size: 16 }
+                    },
+                    margin: {t: 30, r: 20, b: 20, l: 20},
+                    height: 300,
                     autosize: true,
                     responsive: true
                 }
@@ -308,7 +338,7 @@
         function refreshDashboardCharts() {
             const charts = ['rocCurve', 'prCurve', 'featureImportance', 'modelEvolution', 'vendorAgreement'];
             charts.forEach(chartType => {
-                if (chartData[chartType]) {
+                if (chartData[chartType] && chartData[chartType].data && chartData[chartType].data.length > 0) {
                     const chartDiv = document.getElementById(chartType);
                     if (chartDiv) {
                         let layout = {
@@ -317,22 +347,24 @@
                             autosize: true,
                             responsive: true
                         };
-        
+
                         // Adjust height for specific charts
                         if (chartType === 'featureImportance') {
-                            layout.height = 400;
+                            layout.height = 500;
                         } else if (chartType === 'modelEvolution') {
                             layout.height = 300;
                         } else {
-                            layout.height = 200;
+                            layout.height = 300;
                         }
-        
+
                         try {
                             Plotly.react(chartDiv, chartData[chartType].data, layout);
                         } catch (error) {
                             console.error(`Error refreshing ${chartType} chart:`, error);
                         }
                     }
+                } else {
+                    console.warn(`No data available for ${chartType}`);
                 }
             });
         }
@@ -366,7 +398,7 @@
             modalTitle.textContent = title;
             modal.style.display = "flex";
             modal.classList.add('show');
-    
+
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
             newChartDiv.style.height = '100%';
@@ -475,4 +507,19 @@
         });
     });
 </script>
+
+<style>
+    .chart-content {
+        width: 100%;
+        min-height: 300px;
+    }
+
+    #featureImportance {
+        height: 500px;
+    }
+
+    #modelEvolution {
+        height: 300px;
+    }
+</style>
 {% endblock %}
