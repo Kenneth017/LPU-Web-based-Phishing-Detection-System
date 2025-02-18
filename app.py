@@ -207,6 +207,18 @@ def init_db():
         ''')
         print("Users table created or already exists")
 
+        # Add the user_activity_log table creation here
+        print("Creating user_activity_log table if it doesn't exist")
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS user_activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                action TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        print("User activity log table created or already exists")
+
         # Check if columns exist, if not add them
         c.execute("PRAGMA table_info(users)")
         columns = [column[1] for column in c.fetchall()]
@@ -484,6 +496,57 @@ def login_required(func):
             
         return await func(*args, **kwargs)
     return decorated_view
+
+def log_user_activity(username, action):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO user_activity_log (username, action, timestamp)
+        VALUES (?, ?, ?)
+    """, (username, action, get_singapore_time()))
+    conn.commit()
+    conn.close()
+
+@app.route('/admin_dashboard')
+@login_required
+async def admin_dashboard():
+    if not session.get('is_admin'):
+        await flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+
+        # Get login/logout activity
+        c.execute("""
+            SELECT username, action, timestamp
+            FROM user_activity_log
+            ORDER BY timestamp DESC
+            LIMIT 50
+        """)
+        activity_log = c.fetchall()
+
+        # Get analysis metrics
+        c.execute("""
+            SELECT 
+                COUNT(*) as total_analyses,
+                SUM(CASE WHEN main_verdict = 'phishing' THEN 1 ELSE 0 END) as phishing_count,
+                SUM(CASE WHEN main_verdict = 'malicious' THEN 1 ELSE 0 END) as malicious_count,
+                SUM(CASE WHEN main_verdict = 'suspicious' THEN 1 ELSE 0 END) as suspicious_count,
+                SUM(CASE WHEN main_verdict = 'safe' THEN 1 ELSE 0 END) as safe_count
+            FROM analysis_history
+        """)
+        metrics = c.fetchone()
+
+        conn.close()
+
+        return await render_template('admin_dashboard.html', activity_log=activity_log, metrics=metrics)
+
+    except Exception as e:
+        logger.error(f"Error in admin dashboard: {str(e)}")
+        await flash('An error occurred while loading the admin dashboard.', 'error')
+        return redirect(url_for('home'))
 
 @app.route('/register', methods=['GET', 'POST'])
 async def register():
@@ -2085,6 +2148,9 @@ async def login():
                 session['session_token'] = session_token
                 session['session_expiry'] = expiry_time.isoformat()
                 
+                # Add the log_user_activity call here, after setting up the session
+                log_user_activity(user['username'], 'login')
+                
                 await flash('Login successful!', 'success')
                 return redirect(url_for('home'))
             else:
@@ -2101,6 +2167,9 @@ async def login():
 @login_required
 async def logout():
     try:
+        # Add the log_user_activity call here, before clearing the session
+        log_user_activity(session.get('username'), 'logout')
+        
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("UPDATE users SET session_token = NULL, session_expiry = NULL WHERE id = ?",
