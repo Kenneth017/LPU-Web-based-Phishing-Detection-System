@@ -485,6 +485,76 @@ def login_required(func):
         return await func(*args, **kwargs)
     return decorated_view
 
+@app.route('/register', methods=['GET', 'POST'])
+async def register():
+    if request.method == 'POST':
+        form = await request.form
+        username = form.get('username')
+        email = form.get('email')
+        password = form.get('password')
+        confirm_password = form.get('confirm_password')
+
+        if not all([username, email, password, confirm_password]):
+            await flash('All fields are required.', 'error')
+            return await render_template('register.html')
+
+        if password != confirm_password:
+            await flash('Passwords do not match.', 'error')
+            return await render_template('register.html')
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        try:
+            c.execute("SELECT * FROM users WHERE username = ? OR email = ?", (username, email))
+            if c.fetchone():
+                await flash('Username or email already exists.', 'error')
+                return await render_template('register.html')
+
+            hashed_password = generate_password_hash(password)
+            c.execute("""
+                INSERT INTO users (username, email, password, is_admin, email_verified) 
+                VALUES (?, ?, ?, ?, ?)
+            """, (username, email, hashed_password, False, False))
+            conn.commit()
+
+            # Send verification email
+            token = serializer.dumps(email, salt='email-verification-salt')
+            verification_url = url_for('verify_email', token=token, _external=True)
+            
+            subject = 'Verify your email for Phishing Detection System'
+            html_content = f"""
+            <html>
+                <body>
+                    <h2>Welcome to Phishing Detection System</h2>
+                    <p>Please click the link below to verify your email:</p>
+                    <a href="{verification_url}">Verify Email</a>
+                </body>
+            </html>
+            """
+            
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = os.getenv('APP_EMAIL')
+            msg['To'] = email
+            msg.attach(MIMEText(html_content, 'html'))
+
+            await send_email_async(
+                os.getenv('APP_EMAIL'),
+                email,
+                os.getenv('APP_EMAIL_PASSWORD'),
+                msg
+            )
+
+            await flash('Registration successful! Please check your email to verify your account.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            logger.error(f"Error during registration: {str(e)}")
+            await flash('An error occurred during registration.', 'error')
+        finally:
+            conn.close()
+
+    return await render_template('register.html')
+
 @app.route('/extend_session', methods=['POST'])
 @login_required
 async def extend_session():
