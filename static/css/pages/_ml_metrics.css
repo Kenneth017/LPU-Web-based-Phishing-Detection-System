@@ -292,11 +292,18 @@
 /* Modal styles update */
 .ml-dashboard .modal {
     background-color: rgba(10, 14, 41, 0.95) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ml-dashboard .modal-content {
     background-color: var(--secondary-bg);
     border: 1px solid var(--glass-border);
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    margin: 0;
 }
 
 /* Plotly modebar (the floating toolbar) styling */
