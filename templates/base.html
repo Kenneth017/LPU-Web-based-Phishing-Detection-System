@@ -45,6 +45,10 @@
                 <a href="{{ url_for('manage_users') }}" class="nav-link {% if request.endpoint == 'manage_users' %}active{% endif %}">
                     <i class="fas fa-users-cog"></i> Manage Users
                 </a>
+                </a>
+                <a href="{{ url_for('activity_logs') }}" class="nav-link {% if request.endpoint == 'activity_logs' %}active{% endif %}">
+                    <i class="fas fa-history"></i> Activity Logs
+                </a>
             {% endif %}
 
             <!-- Logout always appears last -->
