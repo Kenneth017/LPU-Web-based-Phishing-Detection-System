@@ -229,32 +229,51 @@
         </table>
     </div>
 
-    <div class="dashboard-card">
-        <h2 class="card-title">Recent Analysis Activities (Last 90 Days)</h2>
-        <table class="logs-table">
-            <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Input</th>
-                    <th>Verdict</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for activity in analysis_activities %}
-                <tr>
-                    <td>{{ activity.username }}</td>
-                    <td>{{ activity.input_string }}</td>
-                    <td class="verdict-{{ activity.main_verdict.lower() }}">
-                        {{ activity.main_verdict }}
-                    </td>
-                    <td>{{ activity.analysis_date }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <div class="pagination-container">
-            {{ pagination.links }}
-        </div>
+<div class="dashboard-card">
+    <h2 class="card-title">Recent Analysis Activities (Last 90 Days)</h2>
+    <table class="logs-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Input</th>
+                <th>Verdict</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for activity in analysis_activities %}
+            <tr>
+                <td>{{ activity.username }}</td>
+                <td>{{ activity.input_string }}</td>
+                <td class="verdict-{{ activity.main_verdict.lower() }}">
+                    {{ activity.main_verdict }}
+                </td>
+                <td>{{ activity.analysis_date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if pagination %}
+    <div class="pagination-container">
+        {{ pagination.links }}
     </div>
+    {% else %}
+    <div class="pagination-container">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page > 1 %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('admin_dashboard', page=page-1) }}">Previous</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                {% if page * per_page < total %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('admin_dashboard', page=page+1) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+    <div class="pagination-page-info">
+        Showing {{ (page - 1) * per_page + 1 }} to {{ min(page * per_page, total) }} of {{ total }} entries
+    </div>
+</div>
 {% endblock %}
