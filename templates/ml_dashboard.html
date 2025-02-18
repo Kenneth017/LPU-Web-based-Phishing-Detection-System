@@ -107,6 +107,26 @@
             vendorAgreement: null
         };
     
+        // Common chart layout settings
+        const commonChartLayout = {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { 
+                color: '#FFFFFF',
+                family: 'Inter, sans-serif'
+            },
+            xaxis: {
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)',
+                linecolor: 'rgba(255,255,255,0.1)'
+            },
+            yaxis: {
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)',
+                linecolor: 'rgba(255,255,255,0.1)'
+            }
+        };
+    
         // Initialize main charts
         function initializeCharts() {
             // ROC Curve
@@ -121,14 +141,18 @@
                     line: {color: '#17BECF'}
                 }],
                 layout: {
+                    ...commonChartLayout,
                     title: '',
-                    xaxis: {title: 'False Positive Rate'},
-                    yaxis: {title: 'True Positive Rate'},
+                    xaxis: {
+                        ...commonChartLayout.xaxis,
+                        title: 'False Positive Rate'
+                    },
+                    yaxis: {
+                        ...commonChartLayout.yaxis,
+                        title: 'True Positive Rate'
+                    },
                     margin: {t: 10, r: 10, b: 30, l: 40},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
+                    height: 200
                 }
             };
             Plotly.newPlot('rocCurve', chartData.rocCurve.data, chartData.rocCurve.layout);
@@ -146,15 +170,21 @@
                         line: {color: '#7F7F7F'}
                     }],
                     layout: {
+                        ...commonChartLayout,
                         title: '',
-                        xaxis: {title: 'Recall', range: [0, 1]},
-                        yaxis: {title: 'Precision', range: [0, 1]},
+                        xaxis: {
+                            ...commonChartLayout.xaxis,
+                            title: 'Recall',
+                            range: [0, 1]
+                        },
+                        yaxis: {
+                            ...commonChartLayout.yaxis,
+                            title: 'Precision',
+                            range: [0, 1]
+                        },
                         showlegend: true,
                         margin: {t: 10, r: 10, b: 30, l: 40},
-                        height: 200,
-                        plot_bgcolor: 'rgba(0,0,0,0)',
-                        paper_bgcolor: 'rgba(0,0,0,0)',
-                        font: { color: '#FFFFFF' }
+                        height: 200
                     }
                 };
                 Plotly.newPlot('prCurve', chartData.prCurve.data, chartData.prCurve.layout);
@@ -179,18 +209,20 @@
                     orientation: 'h'
                 }],
                 layout: {
+                    ...commonChartLayout,
                     title: '',
-                    xaxis: {title: 'Importance Score'},
+                    xaxis: {
+                        ...commonChartLayout.xaxis,
+                        title: 'Importance Score'
+                    },
                     yaxis: {
+                        ...commonChartLayout.yaxis,
                         title: '',
                         automargin: true,
                         tickfont: {size: 8}
                     },
                     margin: {t: 10, r: 10, b: 30, l: 150},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
+                    height: 200
                 }
             };
             Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
@@ -206,14 +238,18 @@
                     name: 'Accuracy'
                 }],
                 layout: {
+                    ...commonChartLayout,
                     title: '',
-                    xaxis: {title: 'Date'},
-                    yaxis: {title: 'Accuracy'},
+                    xaxis: {
+                        ...commonChartLayout.xaxis,
+                        title: 'Date'
+                    },
+                    yaxis: {
+                        ...commonChartLayout.yaxis,
+                        title: 'Accuracy'
+                    },
                     margin: {t: 10, r: 10, b: 30, l: 40},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
+                    height: 200
                 }
             };
             Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
@@ -227,12 +263,10 @@
                     type: 'pie'
                 }],
                 layout: {
+                    ...commonChartLayout,
                     title: '',
                     margin: {t: 10, r: 10, b: 10, l: 10},
-                    height: 200,
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#FFFFFF' }
+                    height: 200
                 }
             };
             Plotly.newPlot('vendorAgreement', chartData.vendorAgreement.data, chartData.vendorAgreement.layout);
@@ -331,6 +365,7 @@
             
             const modalLayout = {
                 ...chartData[chartType].layout,
+                ...commonChartLayout,
                 autosize: true,
                 height: modalContent.clientHeight,
                 width: modalContent.clientWidth,
@@ -339,6 +374,10 @@
                     r: 30,
                     t: 30,
                     b: 50
+                },
+                modebar: {
+                    bgcolor: 'rgba(0,0,0,0)',
+                    color: '#FFFFFF'
                 }
             };
             
@@ -352,10 +391,12 @@
             modal.classList.remove('show');
             setTimeout(() => modal.style.display = "none", 300);
         };
+
         window.onclick = (event) => {
             if (event.target == modal) {
                 console.log("Clicked outside modal");
-                modal.style.display = "none";
+                modal.classList.remove('show');
+                setTimeout(() => modal.style.display = "none", 300);
             }
         };
     
@@ -373,15 +414,20 @@
         // Window resize handler
         window.addEventListener('resize', function() {
             document.querySelectorAll('.chart-content').forEach(chart => {
-                Plotly.relayout(chart, { 'autosize': true });
+                Plotly.relayout(chart, { 
+                    'autosize': true,
+                    ...commonChartLayout 
+                });
             });
             
             if (modal.style.display === "block") {
                 const modalChart = modalContent.querySelector('div');
                 if (modalChart) {
                     Plotly.relayout(modalChart, {
+                        ...commonChartLayout,
                         'height': modalContent.clientHeight - 60,
-                        'width': modalContent.clientWidth - 40
+                        'width': modalContent.clientWidth - 40,
+                        'autosize': true
                     });
                 }
             }
