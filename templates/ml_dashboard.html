@@ -345,34 +345,28 @@
         const closeBtn = modal.querySelector('.close');
     
         function maximizeChart(cardId) {
-            console.log("Maximize chart called for:", cardId);
             const card = document.getElementById(cardId);
             const title = card.querySelector('h3').textContent;
             const chartType = card.querySelector('.chart-content').id;
-            
-            console.log("Chart type:", chartType);
-            console.log("Chart data available:", chartData[chartType] !== undefined);
-    
+        
             modalTitle.textContent = title;
-            modal.style.display = "block";
-            setTimeout(() => modal.classList.add('show'), 10);
-
+            modal.style.display = "flex";
+            modal.classList.add('show');
+        
             const newChartDiv = document.createElement('div');
             newChartDiv.style.width = '100%';
             newChartDiv.style.height = '100%';
             modalContent.innerHTML = '';
             modalContent.appendChild(newChartDiv);
-            
+        
             const modalLayout = {
                 ...chartData[chartType].layout,
                 ...commonChartLayout,
                 autosize: true,
-                height: modalContent.clientHeight,
-                width: modalContent.clientWidth,
                 margin: {
                     l: 50,
                     r: 30,
-                    t: 30,
+                    t: 10,
                     b: 50
                 },
                 modebar: {
@@ -380,10 +374,8 @@
                     color: '#FFFFFF'
                 }
             };
-            
-            console.log("Plotting chart in modal");
-            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout);
-            console.log("Chart plotted");
+        
+            Plotly.newPlot(newChartDiv, chartData[chartType].data, modalLayout, {responsive: true});
         }
     
         // Modal event listeners
@@ -411,7 +403,6 @@
             });
         });
     
-        // Window resize handler
         window.addEventListener('resize', function() {
             document.querySelectorAll('.chart-content').forEach(chart => {
                 Plotly.relayout(chart, { 
@@ -419,14 +410,12 @@
                     ...commonChartLayout 
                 });
             });
-            
-            if (modal.style.display === "block") {
+        
+            if (modal.style.display === "flex") {
                 const modalChart = modalContent.querySelector('div');
                 if (modalChart) {
                     Plotly.relayout(modalChart, {
                         ...commonChartLayout,
-                        'height': modalContent.clientHeight - 60,
-                        'width': modalContent.clientWidth - 40,
                         'autosize': true
                     });
                 }
