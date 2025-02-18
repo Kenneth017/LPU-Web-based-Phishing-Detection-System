@@ -352,3 +352,122 @@ a:hover {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Page Transitions and Effects */
+
+/* Page Transition Overlay */
+.page-transition-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--primary-bg);
+    z-index: 9999;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s ease-in-out;
+}
+
+.page-transition-overlay.active {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* Content Transitions */
+/* Regular pages */
+body:not(.login-page) .content-wrapper {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+body:not(.login-page) .content-wrapper.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Login page specific */
+body.login-page .content-wrapper {
+    opacity: 1;
+    transform: none;
+    transition: none;
+}
+
+/* Navigation Link Effects */
+/* Regular pages navigation */
+body:not(.login-page) .nav-link {
+    position: relative;
+    overflow: hidden;
+}
+
+body:not(.login-page) .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent-color);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+}
+
+body:not(.login-page) .nav-link:hover::after,
+body:not(.login-page) .nav-link.active::after {
+    transform: translateX(0);
+}
+
+/* Ripple Effect */
+.nav-link .ripple {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Animation Keyframes */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Additional Helper Classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+.transition-none {
+    transition: none !important;
+}
+
+/* Ensure smooth transitions */
+.smooth-transition {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Handle visibility states */
+.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+}
