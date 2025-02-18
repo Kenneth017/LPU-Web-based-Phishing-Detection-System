@@ -573,12 +573,20 @@ async def admin_dashboard():
         }
 
         # Pagination for analysis activities
-        page = request.args.get(get_page_parameter(), type=int, default=1)
+        try:
+            page = request.args.get(get_page_parameter(), type=int, default=1)
+        except:
+            page = request.args.get('page', type=int, default=1)
+        
         per_page = 25
         offset = (page - 1) * per_page
         total = len(all_analysis_activities)
         analysis_activities = all_analysis_activities[offset: offset + per_page]
-        pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap4')
+        
+        try:
+            pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap4')
+        except:
+            pagination = None
 
         return await render_template(
             'admin_dashboard.html',
@@ -586,7 +594,10 @@ async def admin_dashboard():
             metrics=metrics,
             detection_rates=detection_rates,
             analysis_activities=analysis_activities,
-            pagination=pagination
+            pagination=pagination,
+            page=page,
+            per_page=per_page,
+            total=total
         )
 
     except Exception as e:
