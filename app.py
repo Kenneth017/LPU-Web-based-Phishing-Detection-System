@@ -574,6 +574,45 @@ async def extend_session():
         logger.error(f"Error extending session: {str(e)}")
         return jsonify({'success': False})
 
+@app.route('/analyze_email', methods=['POST'])
+@login_required
+async def analyze_email():
+    try:
+        data = await request.get_json()
+        email_content = data.get('email_content')
+        
+        if not email_content:
+            return jsonify({'error': 'No email content provided'}), 400
+
+        # Use your existing EmailPhishingDetector to analyze the email
+        result = detector.analyze_email(email_content)
+
+        # Store the analysis result
+        user_id = session.get('user_id')
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO analysis_history 
+            (user_id, input_string, input_type, is_malicious, metadata, analysis_date, main_verdict)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            email_content[:100],  # Store first 100 characters of email content
+            'email',
+            int(result['is_phishing']),
+            json.dumps(result),
+            get_singapore_time(),
+            'phishing' if result['is_phishing'] else 'safe'
+        ))
+        conn.commit()
+        conn.close()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error analyzing email: {str(e)}")
+        return jsonify({'error': 'An error occurred while analyzing the email'}), 500
+
 @app.route('/force_logout/<int:user_id>', methods=['POST'])
 @login_required
 async def force_logout(user_id):
