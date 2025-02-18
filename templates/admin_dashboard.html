@@ -16,12 +16,16 @@
         padding: 1.5rem;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
     }
 
     .card-title {
         font-size: 1.2rem;
         color: var(--accent-color);
         margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .stat-grid {
@@ -32,6 +36,9 @@
 
     .stat-item {
         text-align: center;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
     }
 
     .stat-value {
@@ -43,6 +50,7 @@
     .stat-label {
         font-size: 0.9rem;
         color: var(--text-color-secondary);
+        margin-top: 0.25rem;
     }
 
     .logs-table {
@@ -64,17 +72,60 @@
     .logs-table th {
         background: rgba(255, 255, 255, 0.1);
         font-weight: 600;
+        position: sticky;
+        top: 0;
     }
 
     .verdict-safe { color: #4caf50; }
     .verdict-phishing { color: #f44336; }
     .verdict-malicious { color: #ff9800; }
     .verdict-suspicious { color: #ffc107; }
-    }
-    
-    * Add any additional styles here */
+
     .export-btn {
-        margin-bottom: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: var(--accent-color);
+        color: var(--text-color);
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .export-btn:hover {
+        background-color: var(--accent-color-hover);
+        transform: translateY(-2px);
+    }
+
+    /* Responsive table */
+    @media (max-width: 768px) {
+        .logs-table {
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .stat-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Container padding */
+    .container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* Dashboard title */
+    h1 {
+        margin-bottom: 2rem;
+        color: var(--accent-color);
+        font-size: 2rem;
+        font-weight: 700;
     }
 </style>
 {% endblock %}
@@ -83,7 +134,9 @@
 <div class="container">
     <h1>Admin Dashboard</h1>
     
-    <a href="{{ url_for('export_logs') }}" class="btn btn-primary export-btn">Export Logs (CSV)</a>
+    <a href="{{ url_for('export_logs') }}" class="export-btn">
+        <i class="fas fa-download"></i> Export Logs (CSV)
+    </a>
 
     <div class="dashboard-container">
         <div class="dashboard-card">
