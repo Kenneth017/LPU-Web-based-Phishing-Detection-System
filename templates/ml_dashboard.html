@@ -194,97 +194,96 @@
     
             // Feature Importance
             const featureData = {{ feature_importance|tojson }};
-            const featureImportanceData = [];
-            for (const category in featureData) {
-                for (const feature in featureData[category]) {
-                    featureImportanceData.push({
+            console.log("Feature Importance Data:", featureData);
+            
+            if (featureData && Object.keys(featureData).length > 0) {
+                const featureImportanceData = Object.entries(featureData).flatMap(([category, features]) => 
+                    Object.entries(features).map(([feature, importance]) => ({
                         feature: `${category} - ${feature}`,
-                        importance: featureData[category][feature]
-                    });
-                }
-            }
-            featureImportanceData.sort((a, b) => b.importance - a.importance);
-        
-            // Store the data for Feature Importance
-            chartData.featureImportance = {
-                data: [{
-                    x: featureImportanceData.map(d => d.importance),
-                    y: featureImportanceData.map(d => d.feature),
-                    type: 'bar',
-                    orientation: 'h',
-                    marker: {
-                        color: '#17BECF'
+                        importance
+                    }))
+                ).sort((a, b) => b.importance - a.importance);
+            
+                chartData.featureImportance = {
+                    data: [{
+                        x: featureImportanceData.map(d => d.importance),
+                        y: featureImportanceData.map(d => d.feature),
+                        type: 'bar',
+                        orientation: 'h',
+                        marker: {
+                            color: '#17BECF'
+                        }
+                    }],
+                    layout: {
+                        ...commonChartLayout,
+                        xaxis: {
+                            ...commonChartLayout.xaxis,
+                            title: 'Importance Score',
+                            tickfont: { size: 10 }
+                        },
+                        yaxis: {
+                            ...commonChartLayout.yaxis,
+                            title: '',
+                            automargin: true,
+                            tickfont: { size: 8 }
+                        },
+                        margin: {t: 10, r: 10, b: 50, l: 250},
+                        height: 400,
+                        bargap: 0.2,
+                        showlegend: false
                     }
-                }],
-                layout: {
-                    ...commonChartLayout,
-                    xaxis: {
-                        ...commonChartLayout.xaxis,
-                        title: 'Importance Score',
-                        tickfont: { size: 10 }
-                    },
-                    yaxis: {
-                        ...commonChartLayout.yaxis,
-                        title: '',
-                        automargin: true,
-                        tickfont: { size: 8 }
-                    },
-                    margin: {t: 10, r: 10, b: 50, l: 250},
-                    height: 200,
-                    bargap: 0.2,
-                    showlegend: false
-                }
-            };
-        
-            // Create Feature Importance chart with a delay
-            setTimeout(() => {
+                };
+            
                 Plotly.newPlot('featureImportance', chartData.featureImportance.data, chartData.featureImportance.layout);
-            }, 100);
+            } else {
+                console.error("Feature Importance data is empty or invalid");
+            }
         
             // Model Evolution
             const evolutionData = {{ model_evolution|tojson }};
+            console.log("Model Evolution Data:", evolutionData);
             
-            // Store the data for Model Evolution
-            chartData.modelEvolution = {
-                data: [{
-                    x: evolutionData.dates,
-                    y: evolutionData.accuracy,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    name: 'Accuracy',
-                    line: {
-                        color: '#17BECF',
-                        width: 2
-                    },
-                    marker: {
-                        size: 8,
-                        color: '#17BECF'
+            if (evolutionData && evolutionData.dates && evolutionData.accuracy) {
+                chartData.modelEvolution = {
+                    data: [{
+                        x: evolutionData.dates,
+                        y: evolutionData.accuracy,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Accuracy',
+                        line: {
+                            color: '#17BECF',
+                            width: 2
+                        },
+                        marker: {
+                            size: 8,
+                            color: '#17BECF'
+                        }
+                    }],
+                    layout: {
+                        ...commonChartLayout,
+                        xaxis: {
+                            ...commonChartLayout.xaxis,
+                            title: 'Date',
+                            tickangle: -45,
+                            tickfont: { size: 10 }
+                        },
+                        yaxis: {
+                            ...commonChartLayout.yaxis,
+                            title: 'Accuracy',
+                            tickformat: '.2%',
+                            range: [0, 1],
+                            tickfont: { size: 10 }
+                        },
+                        margin: {t: 10, r: 30, b: 80, l: 50},
+                        height: 300
                     }
-                }],
-                layout: {
-                    ...commonChartLayout,
-                    xaxis: {
-                        ...commonChartLayout.xaxis,
-                        title: 'Date',
-                        tickangle: -45,
-                        tickfont: { size: 10 }
-                    },
-                    yaxis: {
-                        ...commonChartLayout.yaxis,
-                        title: 'Accuracy',
-                        tickformat: '.2%',
-                        range: [0, 1],
-                        tickfont: { size: 10 }
-                    },
-                    margin: {t: 10, r: 30, b: 80, l: 50},
-                    height: 200
-                }
-            };
-        
-            // Create Model Evolution chart with a delay
-            setTimeout(() => {
+                };
+            
                 Plotly.newPlot('modelEvolution', chartData.modelEvolution.data, chartData.modelEvolution.layout);
-            }, 100);
+            } else {
+                console.error("Model Evolution data is empty or invalid");
+            }
     
             // Vendor Agreement
             const vendorData = {{ vendor_agreement|tojson }};
@@ -328,7 +327,11 @@
                             layout.height = 200;
                         }
         
-                        Plotly.react(chartDiv, chartData[chartType].data, layout);
+                        try {
+                            Plotly.react(chartDiv, chartData[chartType].data, layout);
+                        } catch (error) {
+                            console.error(`Error refreshing ${chartType} chart:`, error);
+                        }
                     }
                 }
             });
