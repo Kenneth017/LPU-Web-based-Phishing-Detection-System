@@ -375,23 +375,29 @@ a:hover {
 }
 
 /* Content Transitions */
-/* Regular pages */
-body:not(.login-page) .content-wrapper {
+.transition-page .content-wrapper {
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
 }
 
-body:not(.login-page) .content-wrapper.visible {
+.transition-page .content-wrapper.visible {
     opacity: 1;
     transform: translateY(0);
 }
 
-/* Login page specific */
-body.login-page .content-wrapper {
+/* Login page and other non-transition pages */
+body:not(.transition-page) .content-wrapper {
     opacity: 1;
     transform: none;
     transition: none;
+}
+
+/* For pages that should never have transitions */
+.no-transition .content-wrapper {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
 }
 
 /* Navigation Link Effects */
