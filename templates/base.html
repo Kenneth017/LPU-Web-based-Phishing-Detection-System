@@ -14,6 +14,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if request.endpoint == 'login' %}login-page{% else %}transition-page{% endif %}">
+    <div class="page-transition-overlay"></div>
     <nav class="navbar">
         <div class="navbar-brand">
             <a href="{{ url_for('home') }}" class="logo">
@@ -157,6 +158,5 @@
             });
         });
     </script>
-    <div class="page-transition-overlay"></div>
 </body>
 </html>
