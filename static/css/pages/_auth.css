@@ -217,3 +217,89 @@
 .button-group .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+
+/* Add these to your existing _auth.css file */
+
+/* Input field focus effects */
+.auth-form .form-control:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(80, 227, 194, 0.2);
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Improve form group spacing */
+.auth-form .form-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+/* Label styling */
+.auth-form .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Input styling */
+.auth-form .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-color);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+/* Button styling refinements */
+.button-group .btn-primary {
+    background-color: var(--accent-color);
+    color: var(--text-color);
+}
+
+.button-group .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hover effects */
+.button-group .btn-primary:hover {
+    background-color: var(--accent-color-hover);
+    transform: translateY(-2px);
+}
+
+.button-group .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Add these CSS variables to your root if not already present */
+:root {
+    --accent-color: #50E3C2;
+    --accent-color-hover: #3cd1b0;
+    --text-color: #ffffff;
+    --text-color-secondary: #b3b3b3;
+    --border-radius-sm: 4px;
+    --border-radius-lg: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 1.5rem;
+    }
+
+    .auth-title {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+}
