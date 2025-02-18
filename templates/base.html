@@ -13,8 +13,7 @@
     {% endif %}
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% if request.endpoint == 'login' %}login-page{% elif request.endpoint in ['reset_password', 'create_user', 'forgot_password'] %}no-transition{% else %}transition-page{% endif %}" data-page="{{ request.endpoint }}">
-    <div class="page-transition-overlay"></div>
+<body class="{% if request.endpoint == 'login' %}login-page{% endif %}">
     <nav class="navbar">
         <div class="navbar-brand">
             <a href="{{ url_for('home') }}" class="logo">
