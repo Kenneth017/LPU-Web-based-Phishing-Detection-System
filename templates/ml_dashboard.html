@@ -311,12 +311,23 @@
                 if (chartData[chartType]) {
                     const chartDiv = document.getElementById(chartType);
                     if (chartDiv) {
-                        Plotly.newPlot(chartDiv, chartData[chartType].data, {
+                        let layout = {
                             ...chartData[chartType].layout,
                             ...commonChartLayout,
                             height: 200,
                             autosize: true
-                        });
+                        };
+        
+                        // Special handling for Feature Importance and Model Evolution
+                        if (chartType === 'featureImportance') {
+                            layout.yaxis.automargin = true;
+                            layout.margin = {t: 10, r: 10, b: 50, l: 250};
+                        } else if (chartType === 'modelEvolution') {
+                            layout.margin = {t: 10, r: 30, b: 80, l: 50};
+                            layout.xaxis.tickangle = -45;
+                        }
+        
+                        Plotly.newPlot(chartDiv, chartData[chartType].data, layout);
                     }
                 }
             });
@@ -560,7 +571,7 @@
                 refreshDashboardCharts();
             }, 300);
         };
-    
+        
         window.onclick = (event) => {
             if (event.target == modal) {
                 modal.classList.remove('show');
@@ -613,8 +624,8 @@
                 refreshDashboardCharts();
             }
         }
-    
-        // Add event listener for window resize with debounce
+        
+        // Debounce the resize event
         let resizeTimer;
         window.addEventListener('resize', function() {
             clearTimeout(resizeTimer);
