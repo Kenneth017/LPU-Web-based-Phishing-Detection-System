@@ -129,26 +129,40 @@
     }
 
     .pagination-container {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: center;
-    }
-    
-    .pagination-page-info {
         margin-top: 1rem;
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .pagination-info {
         color: var(--text-color-secondary);
+        font-size: 0.9rem;
     }
     
-    .pagination .page-link {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+    .pagination {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .page-link {
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
         color: var(--text-color);
+        text-decoration: none;
+        transition: all 0.3s ease;
     }
     
-    .pagination .page-item.active .page-link {
-        background-color: var(--accent-color);
-        border-color: var(--accent-color);
+    .page-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .page-link.active {
+        background: var(--accent-color);
+        color: var(--primary-bg);
     }
 </style>
 {% endblock %}
@@ -253,27 +267,30 @@
             {% endfor %}
         </tbody>
     </table>
-    {% if pagination %}
+    
+    {% if total_pages > 1 %}
     <div class="pagination-container">
-        {{ pagination.links }}
-    </div>
-    {% else %}
-    <div class="pagination-container">
-        <nav aria-label="Page navigation">
-            <ul class="pagination">
-                {% if page > 1 %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('admin_dashboard', page=page-1) }}">Previous</a></li>
+        <div class="pagination-info">
+            Showing {{ start_idx }} to {{ end_idx }} of {{ total_items }} entries
+        </div>
+        <div class="pagination">
+            {% if current_page > 1 %}
+            <a href="{{ url_for('admin_dashboard', page=current_page-1) }}" class="page-link">Previous</a>
+            {% endif %}
+            
+            {% for page_num in range(1, total_pages + 1) %}
+                {% if page_num == current_page %}
+                <span class="page-link active">{{ page_num }}</span>
+                {% else %}
+                <a href="{{ url_for('admin_dashboard', page=page_num) }}" class="page-link">{{ page_num }}</a>
                 {% endif %}
-                <li class="page-item active"><span class="page-link">{{ page }}</span></li>
-                {% if page * per_page < total %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('admin_dashboard', page=page+1) }}">Next</a></li>
-                {% endif %}
-            </ul>
-        </nav>
+            {% endfor %}
+            
+            {% if current_page < total_pages %}
+            <a href="{{ url_for('admin_dashboard', page=current_page+1) }}" class="page-link">Next</a>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
-    <div class="pagination-page-info">
-        Showing {{ (page - 1) * per_page + 1 }} to {{ min(page * per_page, total) }} of {{ total }} entries
-    </div>
 </div>
 {% endblock %}
