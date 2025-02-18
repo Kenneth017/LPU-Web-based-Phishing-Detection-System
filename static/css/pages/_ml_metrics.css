@@ -91,16 +91,20 @@
 .ml-dashboard .modal {
     display: none;
     position: fixed;
-    z-index: 9999; /* Increased to ensure it's above everything */
+    z-index: 9999;
     left: 0;
     top: 0;
-    width: 100vw; /* Changed to viewport width */
+    width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.85); /* Darkened for better contrast */
+    background-color: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(5px);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Add these properties for centering */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ml-dashboard .modal.show {
@@ -111,19 +115,20 @@
 /* Update the modal content dimensions */
 .ml-dashboard .modal-content {
     background-color: var(--secondary-bg);
-    margin: 2vh auto;
     padding: 20px;
     border: 1px solid var(--glass-border);
     border-radius: 10px;
     width: 95%;
     height: 90vh;
+    max-width: 1200px;
     display: flex;
     flex-direction: column;
-    position: relative; /* Added */
-    overflow: hidden; /* Added */
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3); /* Added for better visibility */
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
     transform: translateY(-20px);
     transition: transform 0.3s ease;
+    margin: 0;
 }
 
 .ml-dashboard .modal.show .modal-content {
@@ -263,18 +268,17 @@
 
 @media (max-width: 768px) {
     .ml-dashboard .modal-content {
-        width: 98%; /* Increased width on mobile */
-        height: 95vh; /* Increased height on mobile */
-        margin: 1vh auto; /* Reduced margin on mobile */
-        padding: 15px; /* Reduced padding on mobile */
+        width: 95%;
+        height: 95vh;
+        padding: 15px;
     }
 
     .modal-header h2 {
-        font-size: 1rem; /* Smaller font on mobile */
+        font-size: 1rem;
     }
 
     .close {
-        font-size: 24px; /* Smaller close button on mobile */
+        font-size: 24px;
         width: 32px;
         height: 32px;
     }
