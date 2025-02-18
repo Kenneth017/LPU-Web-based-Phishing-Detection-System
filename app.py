@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from email import policy
 from email import policy
@@ -522,16 +522,19 @@ async def admin_dashboard():
         conn = get_db_connection()
         c = conn.cursor()
 
-        # Get login/logout activity
+        # Get date 90 days ago
+        ninety_days_ago = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d %H:%M:%S')
+
+        # Get login/logout activity for last 90 days
         c.execute("""
             SELECT username, action, timestamp
             FROM user_activity_log
+            WHERE timestamp >= ?
             ORDER BY timestamp DESC
-            LIMIT 50
-        """)
+        """, (ninety_days_ago,))
         activity_log = c.fetchall()
 
-        # Get analysis metrics
+        # Get analysis metrics for last 90 days
         c.execute("""
             SELECT 
                 COUNT(*) as total_analyses,
@@ -540,8 +543,25 @@ async def admin_dashboard():
                 SUM(CASE WHEN main_verdict = 'suspicious' THEN 1 ELSE 0 END) as suspicious_count,
                 SUM(CASE WHEN main_verdict = 'safe' THEN 1 ELSE 0 END) as safe_count
             FROM analysis_history
-        """)
+            WHERE analysis_date >= ?
+        """, (ninety_days_ago,))
         metrics = c.fetchone()
+
+        # Get recent analysis activities for last 90 days
+        c.execute("""
+            SELECT 
+                ah.input_string,
+                ah.main_verdict,
+                ah.analysis_date,
+                u.username
+            FROM analysis_history ah
+            JOIN users u ON ah.user_id = u.id
+            WHERE ah.analysis_date >= ?
+            ORDER BY ah.analysis_date DESC
+        """, (ninety_days_ago,))
+        analysis_activities = c.fetchall()
+
+        conn.close()
 
         # Calculate detection rates
         total_analyses = metrics['total_analyses'] or 1  # Avoid division by zero
@@ -551,22 +571,6 @@ async def admin_dashboard():
             'malicious_rate': (metrics['malicious_count'] / total_analyses) * 100,
             'suspicious_rate': (metrics['suspicious_count'] / total_analyses) * 100
         }
-
-        # Get recent analysis activities
-        c.execute("""
-            SELECT 
-                ah.input_string,
-                ah.main_verdict,
-                ah.analysis_date,
-                u.username
-            FROM analysis_history ah
-            JOIN users u ON ah.user_id = u.id
-            ORDER BY ah.analysis_date DESC
-            LIMIT 50
-        """)
-        analysis_activities = c.fetchall()
-
-        conn.close()
 
         return await render_template(
             'admin_dashboard.html',
@@ -580,6 +584,65 @@ async def admin_dashboard():
         logger.error(f"Error in admin dashboard: {str(e)}")
         await flash('An error occurred while loading the admin dashboard.', 'error')
         return redirect(url_for('home'))
+
+@app.route('/export_logs')
+@login_required
+async def export_logs():
+    if not session.get('is_admin'):
+        await flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+
+        # Get date 90 days ago
+        ninety_days_ago = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d %H:%M:%S')
+
+        # Get all logs for last 90 days
+        c.execute("""
+            SELECT username, action, timestamp
+            FROM user_activity_log
+            WHERE timestamp >= ?
+            ORDER BY timestamp DESC
+        """, (ninety_days_ago,))
+        activity_log = c.fetchall()
+
+        c.execute("""
+            SELECT 
+                u.username,
+                ah.input_string,
+                ah.main_verdict,
+                ah.analysis_date
+            FROM analysis_history ah
+            JOIN users u ON ah.user_id = u.id
+            WHERE ah.analysis_date >= ?
+            ORDER BY ah.analysis_date DESC
+        """, (ninety_days_ago,))
+        analysis_activities = c.fetchall()
+
+        conn.close()
+
+        # Create CSV file
+        si = StringIO()
+        cw = csv.writer(si)
+        cw.writerow(['Log Type', 'Username', 'Action/Input', 'Verdict', 'Timestamp'])
+        
+        for log in activity_log:
+            cw.writerow(['Activity', log['username'], log['action'], '', log['timestamp']])
+        
+        for activity in analysis_activities:
+            cw.writerow(['Analysis', activity['username'], activity['input_string'], activity['main_verdict'], activity['analysis_date']])
+
+        output = make_response(si.getvalue())
+        output.headers["Content-Disposition"] = f"attachment; filename=logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        output.headers["Content-type"] = "text/csv"
+        return output
+
+    except Exception as e:
+        logger.error(f"Error exporting logs: {str(e)}")
+        await flash('An error occurred while exporting logs.', 'error')
+        return redirect(url_for('admin_dashboard'))
 
 @app.route('/register', methods=['GET', 'POST'])
 async def register():
