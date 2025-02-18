@@ -543,9 +543,38 @@ async def admin_dashboard():
         """)
         metrics = c.fetchone()
 
+        # Calculate detection rates
+        total_analyses = metrics['total_analyses'] or 1  # Avoid division by zero
+        detection_rates = {
+            'safe_rate': (metrics['safe_count'] / total_analyses) * 100,
+            'phishing_rate': (metrics['phishing_count'] / total_analyses) * 100,
+            'malicious_rate': (metrics['malicious_count'] / total_analyses) * 100,
+            'suspicious_rate': (metrics['suspicious_count'] / total_analyses) * 100
+        }
+
+        # Get recent analysis activities
+        c.execute("""
+            SELECT 
+                ah.input_string,
+                ah.main_verdict,
+                ah.analysis_date,
+                u.username
+            FROM analysis_history ah
+            JOIN users u ON ah.user_id = u.id
+            ORDER BY ah.analysis_date DESC
+            LIMIT 50
+        """)
+        analysis_activities = c.fetchall()
+
         conn.close()
 
-        return await render_template('admin_dashboard.html', activity_log=activity_log, metrics=metrics)
+        return await render_template(
+            'admin_dashboard.html',
+            activity_log=activity_log,
+            metrics=metrics,
+            detection_rates=detection_rates,
+            analysis_activities=analysis_activities
+        )
 
     except Exception as e:
         logger.error(f"Error in admin dashboard: {str(e)}")
