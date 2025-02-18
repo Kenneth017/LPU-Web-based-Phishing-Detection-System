@@ -559,7 +559,7 @@ async def admin_dashboard():
             WHERE ah.analysis_date >= ?
             ORDER BY ah.analysis_date DESC
         """, (ninety_days_ago,))
-        analysis_activities = c.fetchall()
+        all_analysis_activities = c.fetchall()
 
         conn.close()
 
@@ -572,12 +572,21 @@ async def admin_dashboard():
             'suspicious_rate': (metrics['suspicious_count'] / total_analyses) * 100
         }
 
+        # Pagination for analysis activities
+        page = request.args.get(get_page_parameter(), type=int, default=1)
+        per_page = 25
+        offset = (page - 1) * per_page
+        total = len(all_analysis_activities)
+        analysis_activities = all_analysis_activities[offset: offset + per_page]
+        pagination = Pagination(page=page, per_page=per_page, total=total, css_framework='bootstrap4')
+
         return await render_template(
             'admin_dashboard.html',
             activity_log=activity_log,
             metrics=metrics,
             detection_rates=detection_rates,
-            analysis_activities=analysis_activities
+            analysis_activities=analysis_activities,
+            pagination=pagination
         )
 
     except Exception as e:
@@ -634,7 +643,7 @@ async def export_logs():
         for activity in analysis_activities:
             cw.writerow(['Analysis', activity['username'], activity['input_string'], activity['main_verdict'], activity['analysis_date']])
 
-        output = make_response(si.getvalue())
+        output = await make_response(si.getvalue())
         output.headers["Content-Disposition"] = f"attachment; filename=logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         output.headers["Content-type"] = "text/csv"
         return output
