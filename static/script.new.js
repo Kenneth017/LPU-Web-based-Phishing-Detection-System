@@ -1262,54 +1262,69 @@ class PageTransitionHandler {
     }
 
     init() {
-        // Add ripple effect to navigation links
-        this.links.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                
-                // Create ripple effect
-                const ripple = document.createElement('span');
-                ripple.classList.add('ripple');
-                const rect = link.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                ripple.style.left = `${x}px`;
-                ripple.style.top = `${y}px`;
-                link.appendChild(ripple);
-                
-                // Start page transition
-                this.transitionToPage(link.href);
-                
-                // Remove ripple after animation
-                setTimeout(() => ripple.remove(), 600);
+        // Only initialize if on a transition page
+        if (document.body.classList.contains('transition-page')) {
+            this.links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Skip transition for logout and special links
+                    if (link.href.includes('logout') || link.hasAttribute('data-no-transition')) {
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    
+                    // Create ripple effect
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    const rect = link.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    ripple.style.left = `${x}px`;
+                    ripple.style.top = `${y}px`;
+                    link.appendChild(ripple);
+                    
+                    // Start page transition
+                    this.transitionToPage(link.href);
+                    
+                    // Remove ripple after animation
+                    setTimeout(() => ripple.remove(), 600);
+                });
             });
-        });
 
-        // Show content with animation when page loads
-        window.addEventListener('load', () => {
-            this.contentWrapper.classList.add('visible');
-        });
+            // Show content with animation when page loads
+            window.addEventListener('load', () => {
+                requestAnimationFrame(() => {
+                    this.contentWrapper.classList.add('visible');
+                });
+            });
+
+            // Handle browser back/forward navigation
+            window.addEventListener('popstate', () => {
+                this.contentWrapper.classList.add('visible');
+            });
+        }
     }
 
     async transitionToPage(href) {
-        // Start transition animation
-        this.overlay.classList.add('active');
-        this.contentWrapper.classList.remove('visible');
+        try {
+            // Start transition animation
+            this.overlay.classList.add('active');
+            this.contentWrapper.classList.remove('visible');
 
-        // Wait for animation
-        await new Promise(resolve => setTimeout(resolve, 500));
+            // Wait for animation
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Navigate to new page
-        window.location.href = href;
+            // Navigate to new page
+            window.location.href = href;
+        } catch (error) {
+            console.error('Transition error:', error);
+            // Fallback: direct navigation if transition fails
+            window.location.href = href;
+        }
     }
 }
 
 // Initialize page transitions
 document.addEventListener('DOMContentLoaded', () => {
     new PageTransitionHandler();
-});
-
-// Handle back/forward browser navigation
-window.addEventListener('popstate', () => {
-    document.querySelector('.content-wrapper').classList.add('visible');
 });
