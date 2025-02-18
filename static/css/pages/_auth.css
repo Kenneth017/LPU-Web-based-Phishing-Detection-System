@@ -80,17 +80,25 @@
     gap: 1rem;
 }
 
+/* Button group container */
+.button-group {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
 /* Button styling */
 .button-group .btn,
 .button-group .btn-primary,
+.button-group .btn-secondary,
 .button-group a.btn {
     flex: 1;
-    min-width: 120px; /* Set a minimum width */
+    min-width: 120px;
     height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem; /* Slightly reduce font size */
+    font-size: 0.9rem;
     font-weight: 600;
     text-align: center;
     border: none;
@@ -98,8 +106,8 @@
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
-    padding: 0 1rem; /* Reduce horizontal padding */
-    white-space: nowrap; /* Prevent text wrapping */
+    padding: 0 1rem;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -117,6 +125,7 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(80, 227, 194, 0.3);
 }
+
 
 
 /* Flash messages */
@@ -179,6 +188,7 @@
     
     .button-group .btn,
     .button-group .btn-primary,
+    .button-group .btn-secondary,
     .button-group a.btn {
         width: 100%;
     }
