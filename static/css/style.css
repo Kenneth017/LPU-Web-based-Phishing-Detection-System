@@ -375,15 +375,24 @@ a:hover {
 }
 
 /* Content Transitions */
-.transition-page .content-wrapper {
+.transition-page .content-wrapper:not(.auth-container) {
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
 }
 
-.transition-page .content-wrapper.visible {
+.transition-page .content-wrapper:not(.auth-container).visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Auth pages and other non-transition pages */
+.login-page .content-wrapper,
+.auth-container,
+body:not(.transition-page) .content-wrapper {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
 }
 
 /* Login page and other non-transition pages */
