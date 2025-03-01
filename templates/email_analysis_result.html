@@ -10,7 +10,7 @@
         <div class="result-header">
             <h2>Verdict: {{ "Potential Phishing" if result.is_phishing else "Likely Safe" }}</h2>
             <div class="confidence-meter">
-                <div class="meter-fill {{ result.explanation.confidence_level|lower }}" 
+                <div class="meter-fill {{ result.explanation.confidence_level|lower }}"
                      style="width: {{ result.confidence * 100 }}%;">
                 </div>
             </div>
