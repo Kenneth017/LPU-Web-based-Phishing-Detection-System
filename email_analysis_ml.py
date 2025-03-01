@@ -162,29 +162,51 @@ class EmailPhishingDetector:
         features['is_service_email'] = self._check_service_email_patterns(text)
         features['has_account_info'] = bool(re.search(r'(account|subscription|plan|renewal)', text.lower()))
         
-        # Enhanced greeting detection - Updated patterns
+        # Enhanced greeting detection - Multiple patterns for different formats
         greeting_patterns = [
-            r'(?i)hi\s*,?\s*[a-zA-Z0-9\s]+[!,.]?',  # Matches "Hi Kenneth Sarmiento," or "Hi, Kenneth Sarmiento!"
-            r'(?i)hello\s*,?\s*[a-zA-Z0-9\s]+[!,.]?',  # Matches "Hello Kenneth" or "Hello, Kenneth!"
-            r'(?i)dear\s*,?\s*[a-zA-Z0-9\s]+[!,.]?',  # Matches "Dear Kenneth" or "Dear, Kenneth!"
-            r'(?i)good\s+(?:morning|afternoon|evening)\s*,?\s*[a-zA-Z0-9\s]+[!,.]?'  # Matches "Good morning Kenneth!"
+            # Formal greetings
+            r'(?i)^[^\n]*(?:dear\s+(?:mr\.|ms\.|mrs\.|dr\.)?)\s*[a-z0-9\s]+[,.]?',
+            r'(?i)^[^\n]*(?:to\s+whom\s+it\s+may\s+concern)[,.]?',
+            # Informal greetings
+            r'(?i)^[^\n]*(?:hi|hello|hey)\s*[a-z0-9\s]+[,.]?',
+            # Time-based greetings
+            r'(?i)^[^\n]*(?:good\s+(?:morning|afternoon|evening))\s*[a-z0-9\s]*[,.]?',
+            # General greetings
+            r'(?i)^[^\n]*(?:greetings|salutations)',
+            # Team/group greetings
+            r'(?i)^[^\n]*(?:hi|hello|dear)\s+(?:all|team|everyone|colleagues)[,.]?',
+            # Name only greetings
+            r'(?i)^[^\n]*[A-Z][a-z]+[,.]'
         ]
         
-        # Check for any matching greeting pattern
-        has_greeting = any(re.search(pattern, text) for pattern in greeting_patterns)
-        
-        # Set greeting features
-        features['has_greeting'] = int(has_greeting)
-        features['has_personal_greeting'] = int(has_greeting)
-        
-        # Enhanced signature detection
+        # Enhanced signature detection - Multiple patterns for different formats
         signature_patterns = [
-            r'\b(?:regards|best regards|sincerely|thank|thanks|yours|team|support)\b',
-            r'DISCLAIMER:.*',  # Consider disclaimer as part of signature
+            # Standard closings
+            r'(?i)(?:regards|sincerely|best|cheers|thanks|thank\s+you|yours\s+(?:truly|sincerely)|warmly)[,\s]*(?:\r?\n|\s*$)',
+            # Name with title/position
+            r'(?i)(?:^|\n)[\s-]*[A-Z][a-zA-Z\s.-]+\n(?:.*\n)?(?:.*@.*|.*Phone:.*|.*Tel:.*)',
+            # Company signatures
+            r'(?i)(?:^|\n).*(?:inc\.|corp\.|ltd\.|limited|company).*$',
+            # Contact information blocks
+            r'(?i)(?:tel|phone|email|web|www|https?://)',
+            # Disclaimer sections
+            r'(?i)(?:disclaimer:|confidentiality\s+notice:|privacy\s+notice:)',
+            # Social media links
+            r'(?i)(?:follow\s+us|connect\s+with\s+us|social\s+media)',
+            # Department/division signatures
+            r'(?i)(?:department\s+of|division\s+of|team)',
+            # Professional credentials
+            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)',
         ]
-        has_signature = any(re.search(pattern, text, re.IGNORECASE | re.DOTALL) for pattern in signature_patterns)
-        features['has_signature'] = int(has_signature)
         
+        # Check for greeting patterns
+        has_greeting = any(re.search(pattern, text, re.MULTILINE) for pattern in greeting_patterns)
+        features['has_greeting'] = int(has_greeting)
+        features['has_personal_greeting'] = int(has_greeting and re.search(r'[A-Z][a-z]+', text.split('\n')[0]))
+        
+        # Check for signature patterns
+        has_signature = any(re.search(pattern, text, re.MULTILINE) for pattern in signature_patterns)
+        features['has_signature'] = int(has_signature)
         features['has_company_signature'] = bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text))
         
         # URL features
@@ -218,10 +240,27 @@ class EmailPhishingDetector:
         features['sensitive_info_requested'] = any(word in text.lower() for category in ['financial', 'personal'] 
                                                 for word in self.suspicious_words[category])
         
-        # Debug logging to check greeting and signature detection
-        logger.debug(f"Text being analyzed for greeting and signature: {text[:200]}")  # Log first 200 chars
-        logger.debug(f"Greeting detected: {has_greeting}")
-        logger.debug(f"Signature detected: {has_signature}")
+        # Service email specific features
+        if features['is_service_email']:
+            features['has_unsubscribe'] = bool(re.search(r'unsubscribe|opt.?out', text.lower()))
+            features['has_contact_info'] = bool(re.search(r'contact\s+(?:us|support)|help\s+center', text.lower()))
+            features['has_footer'] = bool(re.search(r'©|copyright|all\s+rights\s+reserved', text.lower()))
+        
+        # Debug logging
+        logger.debug(f"Email Analysis Results:")
+        logger.debug(f"Text length: {features['text_length']}")
+        logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Type: {'Personal' if features['has_personal_greeting'] else 'Generic'}")
+        logger.debug(f"Has signature: {bool(features['has_signature'])} - Company: {bool(features['has_company_signature'])}")
+        logger.debug(f"URLs found: {features['url_count']} (Suspicious: {features['suspicious_url_count']})")
+        logger.debug(f"Service email indicators: {features['is_service_email']}")
+        
+        # Log the first few lines of text for greeting verification
+        first_lines = '\n'.join(text.split('\n')[:3])
+        logger.debug(f"First few lines:\n{first_lines}")
+        
+        # Log the last few lines for signature verification
+        last_lines = '\n'.join(text.split('\n')[-3:])
+        logger.debug(f"Last few lines:\n{last_lines}")
         
         return features
     
