@@ -161,10 +161,20 @@ class EmailPhishingDetector:
         # Service email indicators
         features['is_service_email'] = self._check_service_email_patterns(text)
         features['has_account_info'] = bool(re.search(r'(account|subscription|plan|renewal)', text.lower()))
-        features['has_personal_greeting'] = bool(re.search(r'hi\s+[a-z\s]+|dear\s+[a-z\s]+', text.lower()))
+        
+        # Enhanced greeting detection
+        greeting_patterns = [
+            r'(?i)(?:dear|hi|hello|good\s+(?:morning|afternoon|evening))\s*[a-z0-9\s.,!-]+',
+            r'(?i)hi[\s,]+[a-z0-9\s.,!-]+',
+            r'(?i)hello[\s,]+[a-z0-9\s.,!-]+',
+            r'(?i)dear[\s,]+[a-z0-9\s.,!-]+'
+        ]
+        
+        has_greeting = any(re.search(pattern, text) for pattern in greeting_patterns)
+        features['has_greeting'] = int(has_greeting)
+        features['has_personal_greeting'] = int(has_greeting)  # Update this as well
         
         # Email structure analysis
-        features['has_greeting'] = bool(re.search(r'\b(hi|hello|dear)\b', text.lower()))
         features['has_signature'] = bool(re.search(r'\b(regards|sincerely|thank|thanks|yours|team|support)\b', text.lower()))
         features['has_company_signature'] = bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text))
         
@@ -186,10 +196,6 @@ class EmailPhishingDetector:
         features['digit_ratio'] = sum(1 for c in text if c.isdigit()) / text_length
         features['punctuation_ratio'] = sum(1 for c in text if c in string.punctuation) / text_length
         
-        # Email structure features
-        features['has_greeting'] = 1 if re.search(r'\b(dear|hello|hi|hey)\b', text.lower()) else 0
-        features['has_signature'] = 1 if re.search(r'\b(regards|sincerely|thank|thanks)\b', text.lower()) else 0
-        
         # HTML features
         features['contains_html'] = 1 if html_content else 0
         features['html_tag_count'] = len(re.findall(r'<[^>]+>', html_content)) if html_content else 0
@@ -202,16 +208,6 @@ class EmailPhishingDetector:
         features['has_threat_count'] = sum(1 for word in self.suspicious_words['threat'] if word.lower() in text.lower())
         features['sensitive_info_requested'] = any(word in text.lower() for category in ['financial', 'personal'] 
                                                 for word in self.suspicious_words[category])
-        # Enhanced greeting detection
-        greeting_patterns = [
-            r'\b(?:dear|hi|hello|good\s+(?:morning|afternoon|evening))\s+[a-z0-9\s.,!-]+',
-            r'hi,\s+[a-z0-9\s.,!-]+',
-            r'hello,\s+[a-z0-9\s.,!-]+',
-            r'dear\s+[a-z0-9\s.,!-]+'
-        ]
-        
-        has_greeting = any(re.search(pattern, text.lower()) for pattern in greeting_patterns)
-        features['has_greeting'] = has_greeting
         
         return features
     
