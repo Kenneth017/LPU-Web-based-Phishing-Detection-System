@@ -58,18 +58,37 @@ class EmailPhishingDetector:
         self.tfidf = None
         self.trained = False
         self.feature_names = None
+        # Enhanced suspicious words dictionary
         self.suspicious_words = {
-            'urgent': ['urgent', 'immediate', 'action required', 'account suspended', 'verify now'],
-            'financial': ['bank', 'account', 'credit card', 'payment', 'transfer', 'transaction'],
-            'security': ['password', 'login', 'verify', 'security', 'update required', 'unauthorized'],
-            'personal': ['ssn', 'social security', 'date of birth', 'personal details', 'confidential'],
-            'threat': ['suspended', 'blocked', 'unauthorized', 'suspicious', 'limited', 'locked'],
-            'action': ['click here', 'sign in', 'confirm', 'verify', 'validate', 'update'],
+            'urgent': ['urgent', 'immediate', 'action required', 'account suspended', 'verify now', 'limited time', 'expires soon'],
+            'financial': ['bank', 'account', 'credit card', 'payment', 'transfer', 'transaction', 'money', 'billing'],
+            'security': ['password', 'login', 'verify', 'security', 'update required', 'unauthorized', 'suspicious activity'],
+            'personal': ['ssn', 'social security', 'date of birth', 'personal details', 'confidential', 'identity'],
+            'threat': ['suspended', 'blocked', 'unauthorized', 'suspicious', 'limited', 'locked', 'terminated'],
+            'action': ['click here', 'sign in', 'confirm', 'verify', 'validate', 'update', 'download', 'open attachment'],
         }
+        # Enhanced model configurations
         self.models = {
-            'SVM': SVC(kernel='rbf', C=1.0, probability=True, random_state=42, class_weight='balanced'),
-            'Random Forest': RandomForestClassifier(n_estimators=200, max_depth=20, min_samples_split=5, min_samples_leaf=2, random_state=42, class_weight='balanced', n_jobs=-1),
-            'XGBoost': XGBClassifier(n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42)
+            'XGBoost': XGBClassifier(
+                n_estimators=200,
+                learning_rate=0.05,
+                max_depth=6,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                min_child_weight=3,
+                gamma=0.1,
+                eval_metric='logloss',
+                random_state=42
+            ),
+            'Random Forest': RandomForestClassifier(
+                n_estimators=300,
+                max_depth=15,
+                min_samples_split=10,
+                min_samples_leaf=4,
+                class_weight='balanced',
+                n_jobs=-1,
+                random_state=42
+            )
         }
 
     def load_dataset(self, filepath, text_column='Email Text', class_column='Email Type', chunksize=1000):
@@ -130,19 +149,24 @@ class EmailPhishingDetector:
         return ''
 
     def extract_features(self, text, html_content=''):
-        """Enhanced feature extraction from email text and HTML content"""
+        """Enhanced feature extraction with more sophisticated analysis"""
         features = {}
         
         # Basic text features
         features['text_length'] = len(text)
         words = text.split()
         features['word_count'] = len(words)
+        features['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
         
-        # Safe calculation of average word length
-        if words:
-            features['avg_word_length'] = sum(len(word) for word in words) / len(words)
-        else:
-            features['avg_word_length'] = 0
+        # Service email indicators
+        features['is_service_email'] = self._check_service_email_patterns(text)
+        features['has_account_info'] = bool(re.search(r'(account|subscription|plan|renewal)', text.lower()))
+        features['has_personal_greeting'] = bool(re.search(r'hi\s+[a-z\s]+|dear\s+[a-z\s]+', text.lower()))
+        
+        # Email structure analysis
+        features['has_greeting'] = bool(re.search(r'\b(hi|hello|dear)\b', text.lower()))
+        features['has_signature'] = bool(re.search(r'\b(regards|sincerely|thank|thanks|yours|team|support)\b', text.lower()))
+        features['has_company_signature'] = bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text))
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
@@ -152,7 +176,7 @@ class EmailPhishingDetector:
         
         # Suspicious content features
         for category, words in self.suspicious_words.items():
-            count = sum(1 for word in words if word in text.lower())
+            count = sum(1 for word in words if word.lower() in text.lower())
             features[f'contains_{category}'] = 1 if count > 0 else 0
             features[f'{category}_count'] = count
         
@@ -161,10 +185,6 @@ class EmailPhishingDetector:
         features['uppercase_ratio'] = sum(1 for c in text if c.isupper()) / text_length
         features['digit_ratio'] = sum(1 for c in text if c.isdigit()) / text_length
         features['punctuation_ratio'] = sum(1 for c in text if c in string.punctuation) / text_length
-        
-        # Add urgent count feature
-        urgent_words = ['urgent', 'immediate', 'action required', 'account suspended', 'verify now']
-        features['urgent_count'] = sum(1 for word in urgent_words if word.lower() in text.lower())
         
         # Email structure features
         features['has_greeting'] = 1 if re.search(r'\b(dear|hello|hi|hey)\b', text.lower()) else 0
@@ -177,15 +197,26 @@ class EmailPhishingDetector:
         # Link manipulation features
         features['mismatched_links'] = self._check_link_manipulation(text, html_content)
         
-        # Add these new features
-        features['has_multipart'] = 1 if html_content else 0
-        features['html_to_text_ratio'] = len(html_content) / len(text) if text else 0
-        features['has_base64'] = 1 if 'base64' in text.lower() or 'base64' in html_content.lower() else 0
-        features['has_script'] = 1 if '<script' in html_content.lower() else 0
-        features['has_iframe'] = 1 if '<iframe' in html_content.lower() else 0
-        features['has_form'] = 1 if '<form' in html_content.lower() else 0
+        # Additional security features
+        features['has_urgent_count'] = sum(1 for word in self.suspicious_words['urgent'] if word.lower() in text.lower())
+        features['has_threat_count'] = sum(1 for word in self.suspicious_words['threat'] if word.lower() in text.lower())
+        features['sensitive_info_requested'] = any(word in text.lower() for category in ['financial', 'personal'] 
+                                                for word in self.suspicious_words[category])
         
         return features
+    
+    def _check_service_email_patterns(self, text):
+        """Check for patterns common in legitimate service emails"""
+        service_patterns = [
+            r'subscription|premium|plan|renewal|account',
+            r'welcome to|thank you for|you\'re all set',
+            r'help center|customer support|contact us',
+            r'account information|your account',
+            r'renewal date|expiration date'
+        ]
+        
+        matches = sum(1 for pattern in service_patterns if re.search(pattern, text.lower()))
+        return matches >= 2
 
     def _check_link_manipulation(self, text, html_content=''):
         """Check for common link manipulation techniques"""
@@ -212,22 +243,33 @@ class EmailPhishingDetector:
         return count
 
     def _is_suspicious_url(self, url):
+        """Enhanced suspicious URL detection"""
         try:
             parsed_url = urlparse(url)
             suspicious_indicators = [
-                # ... (existing indicators)
-                
-                # Add these new indicators
-                bool(re.search(r'[0-9]{10,}', url)),  # Long numeric sequences
-                bool(re.search(r'[a-zA-Z0-9]{25,}', url)),  # Very long alphanumeric sequences
+                # Domain-related checks
                 parsed_url.netloc.count('.') > 3,  # Too many subdomains
-                bool(re.search(r'(signin|login|account|verify|secure|banking)', parsed_url.path.lower())),
                 any(tld in parsed_url.netloc.lower() for tld in ['.tk', '.ml', '.ga', '.cf', '.gq']),  # Suspicious TLDs
-                bool(re.search(r'[^\x00-\x7F]', url))  # Non-ASCII characters
+                
+                # URL structure checks
+                bool(re.search(r'[0-9]{10,}', url)),  # Long numeric sequences
+                bool(re.search(r'[^\x00-\x7F]', url)),  # Non-ASCII characters
+                len(url) > 100,  # Unusually long URL
+                
+                # Content-related checks
+                bool(re.search(r'(signin|login|account|verify|secure|banking|password)', parsed_url.path.lower())),
+                bool(re.search(r'(update|confirm|verify|secure|account).*\.(php|html)', parsed_url.path.lower())),
+                
+                # Special character checks
+                '@' in url,  # @ symbol in URL
+                '//' in parsed_url.path,  # Double slash in path
+                parsed_url.netloc.count('-') > 2  # Too many hyphens
             ]
+            
+            # Return True if more than 2 suspicious indicators are found
             return sum(suspicious_indicators) >= 2
         except:
-            return True
+            return True  # If URL parsing fails, consider it suspicious
 
     def _preprocess_text(self, text):
         """Enhanced text preprocessing"""
@@ -432,6 +474,9 @@ class EmailPhishingDetector:
             text_features = self.tfidf.transform([processed_text])
             custom_features = self.extract_features(processed_text, html_content)
             
+            # Check if this is a legitimate service email
+            is_service_email = self._verify_service_email(email_content, custom_features.get('sender', ''))
+            
             # Convert custom features to array
             custom_features_array = np.array([
                 custom_features['text_length'],
@@ -454,32 +499,39 @@ class EmailPhishingDetector:
                 custom_features['contains_html'],
                 custom_features['html_tag_count'],
                 custom_features['mismatched_links'],
-                # Add new features here
                 custom_features.get('has_multipart', 0),
                 custom_features.get('html_to_text_ratio', 0),
                 custom_features.get('has_base64', 0),
                 custom_features.get('has_script', 0),
                 custom_features.get('has_iframe', 0),
-                custom_features.get('has_form', 0)
+                custom_features.get('has_form', 0),
+                # Add new service email feature
+                int(is_service_email)
             ]).reshape(1, -1)
             
             # Combine features
             X = sparse.hstack((text_features, custom_features_array))
-            
+
             # Handle feature vector size
             if X.shape[1] < self.model.n_features_in_:
                 padding = sparse.csr_matrix((1, self.model.n_features_in_ - X.shape[1]))
                 X = sparse.hstack((X, padding))
             elif X.shape[1] > self.model.n_features_in_:
-                X = X[:, :self.model.n_features_in_]
-            
-            # Handle NaN values
+                X = X.tocsr()[:, :self.model.n_features_in_]
+
+            # Convert to dense array and handle NaN values
             X = X.toarray()
             X = np.nan_to_num(X)
-            
+
             # Get prediction and probability
             prediction = self.model.predict(X)[0]
             probability = self.model.predict_proba(X)[0]
+            
+            # Adjust prediction for service emails
+            if is_service_email:
+                logger.info("Email identified as a legitimate service email")
+                prediction = 0  # Mark as safe
+                probability = np.array([0.9, 0.1])  # High confidence in safety
             
             # Extract URLs from the email
             embedded_links = self._extract_urls(email_content, html_content)
@@ -487,8 +539,8 @@ class EmailPhishingDetector:
             logger.info(f"Analysis complete. Prediction: {prediction}, Probability: {probability[1]}")
             
             # Generate explanation
-            explanation = self._generate_explanation(custom_features, probability, embedded_links)
-            
+            explanation = self._generate_explanation(custom_features, probability, embedded_links, is_service_email)
+
             return {
                 'is_phishing': bool(prediction),
                 'confidence': float(probability[1]),
@@ -505,20 +557,21 @@ class EmailPhishingDetector:
                     'word_count': int(custom_features['word_count']),
                     'uppercase_ratio': float(custom_features['uppercase_ratio']),
                     'digit_ratio': float(custom_features['digit_ratio']),
-                    'punctuation_ratio': float(custom_features['punctuation_ratio'])
+                    'punctuation_ratio': float(custom_features['punctuation_ratio']),
+                    'is_service_email': is_service_email
                 },
                 'explanation': explanation,
-                'subject': '',
-                'sender': '',
-                'date': '',
+                'subject': custom_features.get('subject', ''),
+                'sender': custom_features.get('sender', ''),
+                'date': custom_features.get('date', ''),
                 'body': email_content,
                 'html_content': html_content,
                 'embedded_links': embedded_links
             }
-            
         except Exception as e:
             logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
             raise
+
         
     def analyze_headers(self, headers):
         suspicious_headers = []
@@ -614,53 +667,56 @@ class EmailPhishingDetector:
             return f"{parsed_url.scheme}://{parsed_url.netloc}"
         return None
     
-    def _generate_explanation(self, features, probability, embedded_links):
-        """Generate a human-readable explanation for the prediction"""
+    def _generate_explanation(self, features, probability, embedded_links, is_service_email=False):
+        """Generate explanation with service email consideration"""
         suspicious_indicators = []
         safe_indicators = []
         
-        # Check various features and add to appropriate list
+        # Check for service email characteristics
+        if is_service_email:
+            safe_indicators.append("Matches patterns of legitimate service email")
+            if features.get('has_account_info'):
+                safe_indicators.append("Contains expected account information")
+            if features.get('has_company_signature'):
+                safe_indicators.append("Contains valid company signature")
+        
+        # Email structure analysis
+        if features.get('has_greeting') and features.get('has_personal_greeting'):
+            safe_indicators.append("Contains personalized greeting")
+        elif not features.get('has_greeting'):
+            suspicious_indicators.append("Missing proper greeting")
+        
+        if features.get('has_signature') or features.get('has_company_signature'):
+            safe_indicators.append("Contains proper signature")
+        
+        # URL analysis
         if embedded_links:
             suspicious_urls = [link for link in embedded_links if link['suspicious']]
             if suspicious_urls:
-                suspicious_indicators.append(f"Contains {len(suspicious_urls)} suspicious URLs out of {len(embedded_links)} total URLs")
+                suspicious_indicators.append(f"Contains {len(suspicious_urls)} suspicious URLs")
             else:
-                safe_indicators.append(f"Contains {len(embedded_links)} legitimate URLs")
+                safe_indicators.append("All links appear legitimate")
+        
+        # Adjust confidence for service emails
+        if is_service_email and len(safe_indicators) > len(suspicious_indicators):
+            confidence_level = "High"
+            confidence_modifier = 0.8
         else:
-            safe_indicators.append("No URLs present in the email")
+            confidence_level = "Medium" if probability[1] > 0.4 else "Low"
+            confidence_modifier = probability[1]
         
-        if features['contains_urgent']:
-            suspicious_indicators.append("Contains urgent or time-sensitive language")
+        confidence_level = "High" if probability[1] > 0.8 else "Medium" if probability[1] > 0.6 else "Low"
         
-        if features['contains_financial']:
-            suspicious_indicators.append("Contains financial-related terms")
-        
-        if features['contains_security']:
-            suspicious_indicators.append("Contains security-related terms")
-        
-        if features['contains_personal']:
-            suspicious_indicators.append("Requests for personal information detected")
-        
-        if features['mismatched_links'] > 0:
-            suspicious_indicators.append("Contains potentially manipulated links")
-        
-        if features['has_greeting'] and features['has_signature']:
-            safe_indicators.append("Contains proper email structure (greeting and signature)")
-        elif not features['has_greeting'] and not features['has_signature']:
-            suspicious_indicators.append("Missing proper greeting and signature")
-        elif not features['has_greeting']:
-            suspicious_indicators.append("Missing proper greeting")
-        elif not features['has_signature']:
-            suspicious_indicators.append("Missing proper signature")
-        
-        # Generate final explanation
-        explanation = {
-            'confidence': f"{probability[1]*100:.1f}% confidence in classification",
+        return {
+            'confidence_level': confidence_level,
             'suspicious_indicators': suspicious_indicators,
-            'safe_indicators': safe_indicators
+            'safe_indicators': safe_indicators,
+            'risk_assessment': {
+                'url_risk': 'High' if features['suspicious_url_count'] > 0 else 'Low',
+                'content_risk': 'High' if len(suspicious_indicators) > len(safe_indicators) else 'Low',
+                'structure_risk': 'High' if not features['has_greeting'] or not features['has_signature'] else 'Low'
+            }
         }
-        
-        return explanation
         
     def extract_attachments(self, email_data):
         """Extract and analyze attachments from email data"""
@@ -681,6 +737,19 @@ class EmailPhishingDetector:
                 attachments.append(attachment_info)
         
         return attachments
+    
+    def _verify_service_email(self, email_content, sender):
+        """Verify if the email is a legitimate service email"""
+        # Check for common legitimate service email patterns
+        service_indicators = {
+            'has_valid_sender': bool(re.match(r'^.*?support@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$', sender)),
+            'has_account_section': bool(re.search(r'account information|your account', email_content, re.I)),
+            'has_support_info': bool(re.search(r'help center|customer support|contact us', email_content, re.I)),
+            'has_legitimate_greeting': bool(re.search(r'hi\s+[a-z\s]+|dear\s+[a-z\s]+', email_content, re.I)),
+            'has_unsubscribe': bool(re.search(r'unsubscribe|opt.?out', email_content, re.I))
+        }
+        
+        return sum(service_indicators.values()) >= 3
 
     def retrain_model(self, dataset_path):
         """Retrain the model with current XGBoost version"""
@@ -735,31 +804,21 @@ class EmailPhishingDetector:
             self.tfidf = joblib.load(os.path.join(model_dir, 'tfidf_vectorizer.joblib'))
             self.feature_names = joblib.load(os.path.join(model_dir, 'feature_names.joblib'))
             
-            self.trained = True
-            print("All model components loaded successfully")
-                
-        except Exception as e:
-            print(f"Error loading model components: {str(e)}")
-            raise
-            
-            # Load other components
-            self.tfidf = joblib.load(os.path.join(model_dir, 'tfidf_vectorizer.joblib'))
-            self.feature_names = joblib.load(os.path.join(model_dir, 'feature_names.joblib'))
-            
             # Set trained flag based on whether we need to retrain
-            self.trained = hasattr(self.model, 'booster')
+            self.trained = hasattr(self.model, 'predict')
             
             if not self.trained:
                 print("Warning: Model needs to be retrained")
             else:
-                print("Model loaded successfully")
+                print("All model components loaded successfully")
                 
         except Exception as e:
             print(f"Error loading model components: {str(e)}")
+            self.trained = False
             raise
 
-# Enable progress bar for pandas operations
-tqdm.pandas()
+    # Enable progress bar for pandas operations
+    tqdm.pandas()
 
 # Example usage
 if __name__ == "__main__":
