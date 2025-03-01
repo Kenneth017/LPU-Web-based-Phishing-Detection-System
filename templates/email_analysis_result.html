@@ -10,9 +10,14 @@
         <div class="result-header">
             <h2>Verdict: {{ "Potential Phishing" if result.is_phishing else "Likely Safe" }}</h2>
             <div class="confidence-meter">
-                <div class="meter-fill" style="width: {{ result.confidence * 100 }}%;"></div>
+                <div class="meter-fill {{ result.explanation.confidence_level|lower }}" 
+                     style="width: {{ result.confidence * 100 }}%;">
+                </div>
             </div>
-            <span class="confidence-text">Confidence: {{ "%.1f"|format(result.confidence * 100) }}%</span>
+            <span class="confidence-text">
+                Confidence: {{ "%.1f"|format(result.confidence * 100) }}% 
+                ({{ result.explanation.confidence_level }} Confidence)
+            </span>
         </div>
         
         <div class="result-content">
@@ -24,6 +29,35 @@
                     This email appears to be legitimate, but always remain vigilant.
                 {% endif %}
             </p>
+
+            {% if result.features.is_service_email %}
+            <div class="service-email-notice">
+                <h3>Service Email Detection</h3>
+                <p>This appears to be a legitimate service email from a verified sender.</p>
+            </div>
+            {% endif %}
+            
+            <h3>Risk Assessment</h3>
+            <div class="risk-assessment">
+                <div class="risk-category">
+                    <strong>URL Risk:</strong>
+                    <span class="risk-level {{ result.explanation.risk_assessment.url_risk|lower }}">
+                        {{ result.explanation.risk_assessment.url_risk }}
+                    </span>
+                </div>
+                <div class="risk-category">
+                    <strong>Content Risk:</strong>
+                    <span class="risk-level {{ result.explanation.risk_assessment.content_risk|lower }}">
+                        {{ result.explanation.risk_assessment.content_risk }}
+                    </span>
+                </div>
+                <div class="risk-category">
+                    <strong>Structure Risk:</strong>
+                    <span class="risk-level {{ result.explanation.risk_assessment.structure_risk|lower }}">
+                        {{ result.explanation.risk_assessment.structure_risk }}
+                    </span>
+                </div>
+            </div>
             
             <h3>Key Findings</h3>
             <ul class="key-findings">
@@ -73,7 +107,49 @@
                         No attachments found
                     {% endif %}
                 </li>
+                {% if result.features.is_service_email %}
+                <li>
+                    <strong>Service Email Indicators:</strong>
+                    <ul>
+                        {% if result.features.has_account_info %}
+                        <li>Contains expected account information (Good sign)</li>
+                        {% endif %}
+                        {% if result.features.has_company_signature %}
+                        <li>Contains valid company signature (Good sign)</li>
+                        {% endif %}
+                        {% if result.features.has_personal_greeting %}
+                        <li>Contains personalized greeting (Good sign)</li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
             </ul>
+
+            <div class="detailed-indicators">
+                <h3>Analysis Indicators</h3>
+                <div class="indicators-section">
+                    <h4>Suspicious Indicators</h4>
+                    <ul class="suspicious-indicators">
+                        {% for indicator in result.explanation.suspicious_indicators %}
+                        <li class="indicator-item">
+                            <span class="indicator-icon suspicious">⚠️</span>
+                            {{ indicator }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="indicators-section">
+                    <h4>Safe Indicators</h4>
+                    <ul class="safe-indicators">
+                        {% for indicator in result.explanation.safe_indicators %}
+                        <li class="indicator-item">
+                            <span class="indicator-icon safe">✓</span>
+                            {{ indicator }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
             
             <h3>Recommendations</h3>
             <ul class="recommendations">
