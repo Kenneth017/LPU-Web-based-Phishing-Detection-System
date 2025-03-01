@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Phishing Detection System Real-Time Checker",
+  "name": "Email Phishing Detection",
   "version": "1.0",
-  "description": "Check URLs in real-time with Phishing Detection System",
+  "description": "Real-time email analysis for phishing detection",
   "permissions": [
     "tabs",
     "activeTab",
     "scripting",
-    "management"
+    "management",
+    "storage"
   ],
   "host_permissions": [
     "http://*/*",
@@ -19,9 +20,14 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
+      "matches": [
+        "*://mail.google.com/*",
+        "*://outlook.office.com/*",
+        "*://outlook.live.com/*",
+        "*://yahoo.mail.com/*"
+      ],
+      "js": ["content-email.js"],
+      "css": ["css/email_modal.css"]
     }
   ],
   "action": {
