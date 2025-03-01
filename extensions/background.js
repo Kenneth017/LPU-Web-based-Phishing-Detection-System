@@ -45,7 +45,7 @@ function shouldAnalyzeUrl(tabId, url) {
 }
 
 // Listener for messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.tab) {
         tabsWithContentScript.add(sender.tab.id);
     }
@@ -54,6 +54,19 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         checkUrl(sender.tab.id, message.url, false); // Regular check
     } else if (message.action === "userInitiatedCheck") {
         checkUrl(sender.tab.id, message.url, true);  // User initiated check - save to history
+    } else if (message.type === 'analyze_email') {
+        console.log('Received email analysis request:', message);
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            console.log('Sending email data for analysis');
+            socket.send(JSON.stringify({
+                type: 'analyze_email',
+                data: message.data
+            }));
+        } else {
+            console.log('WebSocket not ready. Unable to analyze email.');
+            sendResponse({ error: 'WebSocket not connected' });
+        }
+        return true; // Indicates that the response is sent asynchronously
     }
 });
 
@@ -109,13 +122,21 @@ function connectWebSocket() {
                 return;
             }
             
-            // Modified message sending
             const tabs = await chrome.tabs.query({active: true, currentWindow: true});
             if (tabs[0]) {
-                await sendMessageToTab(tabs[0], {
-                    action: "show_warning",
-                    result: result
-                });
+                if (result.type === 'email_analysis_result') {
+                    console.log('Received email analysis result');
+                    await sendMessageToTab(tabs[0], {
+                        action: "show_email_analysis",
+                        result: result.data
+                    });
+                } else {
+                    // Handle URL check results
+                    await sendMessageToTab(tabs[0], {
+                        action: "show_warning",
+                        result: result
+                    });
+                }
             }
         } catch (e) {
             console.error('Error processing message:', e);
