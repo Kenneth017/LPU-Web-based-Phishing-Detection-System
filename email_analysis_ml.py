@@ -164,57 +164,41 @@ class EmailPhishingDetector:
         
         # Enhanced greeting detection - Multiple patterns for different formats
         greeting_patterns = [
-            # Formal greetings
             r'(?i)^[^\n]*(?:dear\s+(?:mr\.|ms\.|mrs\.|dr\.)?)\s*[a-z0-9\s]+[,.]?',
             r'(?i)^[^\n]*(?:to\s+whom\s+it\s+may\s+concern)[,.]?',
-            # Informal greetings
             r'(?i)^[^\n]*(?:hi|hello|hey)\s*[a-z0-9\s]+[,.]?',
-            # Time-based greetings
             r'(?i)^[^\n]*(?:good\s+(?:morning|afternoon|evening))\s*[a-z0-9\s]*[,.]?',
-            # General greetings
             r'(?i)^[^\n]*(?:greetings|salutations)',
-            # Team/group greetings
             r'(?i)^[^\n]*(?:hi|hello|dear)\s+(?:all|team|everyone|colleagues)[,.]?',
-            # Name only greetings
             r'(?i)^[^\n]*[A-Z][a-z]+[,.]'
+        ]
+        
+        # Enhanced signature detection patterns
+        signature_patterns = [
+            r'(?i)(?:regards|sincerely|best|cheers|thanks|thank\s+you|yours\s+(?:truly|sincerely)|warmly)[,\s]*(?:\r?\n|\s*$)',
+            r'(?i)(?:^|\n)[\s-]*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\n|$)',
+            r'(?i)(?:^|\n).*(?:inc\.|corp\.|ltd\.|limited|company).*$',
+            r'(?i)(?:tel|phone|email|web|www|https?://)',
+            r'(?i)(?:disclaimer:|confidentiality\s+notice:|privacy\s+notice:)',
+            r'(?i)(?:follow\s+us|connect\s+with\s+us|social\s+media)',
+            r'(?i)(?:department\s+of|division\s+of|team)',
+            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)',
+            r'(?i).*@.*\.[a-z]{2,}$'  # Email address at the end
         ]
         
         # Check for greeting patterns
         has_greeting = any(re.search(pattern, text, re.MULTILINE) for pattern in greeting_patterns)
         features['has_greeting'] = int(has_greeting)
         
-        # Fixed personal greeting detection
-        if has_greeting and text.split('\n'):
-            first_line = text.split('\n')[0]
-            has_personal_name = bool(re.search(r'[A-Z][a-z]+', first_line))
-            features['has_personal_greeting'] = int(has_personal_name)
-        else:
-            features['has_personal_greeting'] = 0
-        
-        # Enhanced signature detection patterns
-        signature_patterns = [
-            # Standard closings
-            r'(?i)(?:regards|sincerely|best|cheers|thanks|thank\s+you|yours\s+(?:truly|sincerely)|warmly)[,\s]*(?:\r?\n|\s*$)',
-            # Name with title/position
-            r'(?i)(?:^|\n)[\s-]*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\n|$)',
-            # Company signatures
-            r'(?i)(?:^|\n).*(?:inc\.|corp\.|ltd\.|limited|company).*$',
-            # Contact information blocks
-            r'(?i)(?:tel|phone|email|web|www|https?://)',
-            # Disclaimer sections
-            r'(?i)(?:disclaimer:|confidentiality\s+notice:|privacy\s+notice:)',
-            # Social media links
-            r'(?i)(?:follow\s+us|connect\s+with\s+us|social\s+media)',
-            # Department/division signatures
-            r'(?i)(?:department\s+of|division\s+of|team)',
-            # Professional credentials
-            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)'
-        ]
+        # Check for personal greeting
+        first_line = text.split('\n')[0] if text else ''
+        has_personal_name = bool(re.search(r'[A-Z][a-z]+', first_line))
+        features['has_personal_greeting'] = int(has_greeting and has_personal_name)
         
         # Check for signature patterns
-        has_signature = any(re.search(pattern, text, re.MULTILINE) for pattern in signature_patterns)
+        has_signature = any(re.search(pattern, text, re.MULTILINE | re.DOTALL) for pattern in signature_patterns)
         features['has_signature'] = int(has_signature)
-        features['has_company_signature'] = int(bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text)))
+        features['has_company_signature'] = int(bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text, re.IGNORECASE)))
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
@@ -229,7 +213,7 @@ class EmailPhishingDetector:
             features[f'{category}_count'] = count
         
         # Character-based features
-        text_length = len(text) if len(text) > 0 else 1  # Prevent division by zero
+        text_length = max(len(text), 1)  # Prevent division by zero
         features['uppercase_ratio'] = sum(1 for c in text if c.isupper()) / text_length
         features['digit_ratio'] = sum(1 for c in text if c.isdigit()) / text_length
         features['punctuation_ratio'] = sum(1 for c in text if c in string.punctuation) / text_length
@@ -252,6 +236,8 @@ class EmailPhishingDetector:
         logger.debug(f"Text length: {features['text_length']}")
         logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Personal: {bool(features['has_personal_greeting'])}")
         logger.debug(f"Has signature: {bool(features['has_signature'])} - Company: {bool(features['has_company_signature'])}")
+        logger.debug(f"First few lines:\n{text[:200]}")
+        logger.debug(f"Last few lines:\n{text[-200:]}")
         
         return features
     
