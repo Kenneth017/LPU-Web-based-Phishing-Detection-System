@@ -179,12 +179,24 @@ class EmailPhishingDetector:
             r'(?i)^[^\n]*[A-Z][a-z]+[,.]'
         ]
         
-        # Enhanced signature detection - Multiple patterns for different formats
+        # Check for greeting patterns
+        has_greeting = any(re.search(pattern, text, re.MULTILINE) for pattern in greeting_patterns)
+        features['has_greeting'] = int(has_greeting)
+        
+        # Fixed personal greeting detection
+        if has_greeting and text.split('\n'):
+            first_line = text.split('\n')[0]
+            has_personal_name = bool(re.search(r'[A-Z][a-z]+', first_line))
+            features['has_personal_greeting'] = int(has_personal_name)
+        else:
+            features['has_personal_greeting'] = 0
+        
+        # Enhanced signature detection patterns
         signature_patterns = [
             # Standard closings
             r'(?i)(?:regards|sincerely|best|cheers|thanks|thank\s+you|yours\s+(?:truly|sincerely)|warmly)[,\s]*(?:\r?\n|\s*$)',
             # Name with title/position
-            r'(?i)(?:^|\n)[\s-]*[A-Z][a-zA-Z\s.-]+\n(?:.*\n)?(?:.*@.*|.*Phone:.*|.*Tel:.*)',
+            r'(?i)(?:^|\n)[\s-]*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\n|$)',
             # Company signatures
             r'(?i)(?:^|\n).*(?:inc\.|corp\.|ltd\.|limited|company).*$',
             # Contact information blocks
@@ -196,18 +208,13 @@ class EmailPhishingDetector:
             # Department/division signatures
             r'(?i)(?:department\s+of|division\s+of|team)',
             # Professional credentials
-            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)',
+            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)'
         ]
-        
-        # Check for greeting patterns
-        has_greeting = any(re.search(pattern, text, re.MULTILINE) for pattern in greeting_patterns)
-        features['has_greeting'] = int(has_greeting)
-        features['has_personal_greeting'] = int(has_greeting and re.search(r'[A-Z][a-z]+', text.split('\n')[0]))
         
         # Check for signature patterns
         has_signature = any(re.search(pattern, text, re.MULTILINE) for pattern in signature_patterns)
         features['has_signature'] = int(has_signature)
-        features['has_company_signature'] = bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text))
+        features['has_company_signature'] = int(bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text)))
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
@@ -218,7 +225,7 @@ class EmailPhishingDetector:
         # Suspicious content features
         for category, words in self.suspicious_words.items():
             count = sum(1 for word in words if word.lower() in text.lower())
-            features[f'contains_{category}'] = 1 if count > 0 else 0
+            features[f'contains_{category}'] = int(count > 0)
             features[f'{category}_count'] = count
         
         # Character-based features
@@ -228,7 +235,7 @@ class EmailPhishingDetector:
         features['punctuation_ratio'] = sum(1 for c in text if c in string.punctuation) / text_length
         
         # HTML features
-        features['contains_html'] = 1 if html_content else 0
+        features['contains_html'] = int(bool(html_content))
         features['html_tag_count'] = len(re.findall(r'<[^>]+>', html_content)) if html_content else 0
         
         # Link manipulation features
@@ -237,30 +244,14 @@ class EmailPhishingDetector:
         # Additional security features
         features['has_urgent_count'] = sum(1 for word in self.suspicious_words['urgent'] if word.lower() in text.lower())
         features['has_threat_count'] = sum(1 for word in self.suspicious_words['threat'] if word.lower() in text.lower())
-        features['sensitive_info_requested'] = any(word in text.lower() for category in ['financial', 'personal'] 
-                                                for word in self.suspicious_words[category])
-        
-        # Service email specific features
-        if features['is_service_email']:
-            features['has_unsubscribe'] = bool(re.search(r'unsubscribe|opt.?out', text.lower()))
-            features['has_contact_info'] = bool(re.search(r'contact\s+(?:us|support)|help\s+center', text.lower()))
-            features['has_footer'] = bool(re.search(r'©|copyright|all\s+rights\s+reserved', text.lower()))
+        features['sensitive_info_requested'] = int(any(word in text.lower() for category in ['financial', 'personal'] 
+                                                    for word in self.suspicious_words[category]))
         
         # Debug logging
         logger.debug(f"Email Analysis Results:")
         logger.debug(f"Text length: {features['text_length']}")
-        logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Type: {'Personal' if features['has_personal_greeting'] else 'Generic'}")
+        logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Personal: {bool(features['has_personal_greeting'])}")
         logger.debug(f"Has signature: {bool(features['has_signature'])} - Company: {bool(features['has_company_signature'])}")
-        logger.debug(f"URLs found: {features['url_count']} (Suspicious: {features['suspicious_url_count']})")
-        logger.debug(f"Service email indicators: {features['is_service_email']}")
-        
-        # Log the first few lines of text for greeting verification
-        first_lines = '\n'.join(text.split('\n')[:3])
-        logger.debug(f"First few lines:\n{first_lines}")
-        
-        # Log the last few lines for signature verification
-        last_lines = '\n'.join(text.split('\n')[-3:])
-        logger.debug(f"Last few lines:\n{last_lines}")
         
         return features
     
