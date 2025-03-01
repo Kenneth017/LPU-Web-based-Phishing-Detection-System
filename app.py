@@ -2149,20 +2149,18 @@ async def email_analysis_result():
             additional_data = {}
         
         # Combine the data
-                result = {
-                    'is_phishing': analysis['is_phishing'],
-                    'confidence': analysis['confidence'],
-                    'features': analysis['features'],
-                    'subject': analysis['metadata']['subject'],
-                    'sender': analysis['metadata']['sender'],
-                    'date': analysis['metadata']['date'],
-                    'body': additional_data.get('body', ''),
-                    'html_content': additional_data.get('html_content', ''),
-                    'embedded_links': additional_data.get('embedded_links', []),
-                    'attachments': additional_data.get('attachments', []),
-                    'explanation': analysis['explanation']  # Changed this line
-                }
-            })
+        result = {
+            'is_phishing': analysis['is_phishing'],
+            'confidence': analysis['confidence'],
+            'features': analysis['features'],
+            'subject': analysis['metadata']['subject'],
+            'sender': analysis['metadata']['sender'],
+            'date': analysis['metadata']['date'],
+            'body': additional_data.get('body', ''),
+            'html_content': additional_data.get('html_content', ''),
+            'embedded_links': additional_data.get('embedded_links', []),
+            'attachments': additional_data.get('attachments', []),
+            'explanation': analysis['explanation']  # Changed this line
         }
 
         # Debug logging for URL detection
