@@ -26,6 +26,7 @@
     margin-bottom: 1.5rem;
 }
 
+/* Enhanced confidence meter */
 .confidence-meter {
     width: 100%;
     height: 20px;
@@ -38,6 +39,19 @@
 .meter-fill {
     height: 100%;
     transition: width 0.5s ease-in-out;
+}
+
+/* Updated meter-fill colors for different confidence levels */
+.meter-fill.high {
+    background-color: #FF4B4B;
+}
+
+.meter-fill.medium {
+    background-color: #FFA500;
+}
+
+.meter-fill.low {
+    background-color: #50E3C2;
 }
 
 .phishing .meter-fill {
@@ -55,12 +69,110 @@
     font-weight: bold;
 }
 
+/* Service Email Notice */
+.service-email-notice {
+    background: rgba(80, 227, 194, 0.1);
+    border: 1px solid #50E3C2;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+/* Risk Assessment Section */
+.risk-assessment {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.risk-category {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.risk-level {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: bold;
+}
+
+.risk-level.high {
+    background: rgba(255, 75, 75, 0.2);
+    color: #FF4B4B;
+}
+
+.risk-level.medium {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.risk-level.low {
+    background: rgba(80, 227, 194, 0.2);
+    color: #50E3C2;
+}
+
+/* Detailed Indicators */
+.detailed-indicators {
+    margin: 2rem 0;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.indicators-section {
+    margin: 1rem 0;
+}
+
+.indicator-item {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.indicator-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.5rem;
+    border-radius: 50%;
+}
+
+.indicator-icon.suspicious {
+    background: rgba(255, 75, 75, 0.1);
+    color: #FF4B4B;
+}
+
+.indicator-icon.safe {
+    background: rgba(80, 227, 194, 0.1);
+    color: #50E3C2;
+}
+
+/* Your existing styles remain the same */
 .key-findings, .recommendations {
     padding-left: 20px;
 }
 
 .key-findings li, .recommendations li {
     margin-bottom: 10px;
+}
+
+/* Enhanced key findings styling */
+.key-findings li ul {
+    margin-top: 8px;
+    margin-left: 20px;
+    list-style-type: none;
 }
 
 /* Email content section full width */
@@ -316,4 +428,62 @@ pre {
 /* Hover effect for links */
 .result-card .recommendations li a:hover {
     color: var(--link-hover-color, #2A6496);  /* Link hover color */
+}
+
+/* Additional Feature Breakdown Section */
+.feature-breakdown {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.feature-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.feature-item:last-child {
+    border-bottom: none;
+}
+
+.feature-name {
+    color: var(--text-color);
+}
+
+.feature-value {
+    font-family: monospace;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Enhanced details summary styling */
+details summary {
+    cursor: pointer;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+details summary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+details[open] summary {
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Service Email Specific Styles */
+.service-email-indicators {
+    background: rgba(80, 227, 194, 0.05);
+    border-left: 3px solid #50E3C2;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
 }
