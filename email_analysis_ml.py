@@ -186,6 +186,7 @@ class EmailPhishingDetector:
         # First, split the text into lines and clean them
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         if not lines:
+            logger.warning("Empty email content")
             return features
         
         # Basic text features
@@ -195,47 +196,47 @@ class EmailPhishingDetector:
         features['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
         
         # Get first and last few lines for analysis
-        first_three_lines = ' '.join(lines[:3]).lower()
-        last_three_lines = ' '.join(lines[-3:]).lower()
+        first_five_lines = '\n'.join(lines[:5]).lower()
+        last_five_lines = '\n'.join(lines[-5:]).lower()
         
         # Enhanced greeting patterns
         greeting_patterns = [
-            r'(?i)^\s*dear\s+\w+',                    # Dear John
-            r'(?i)^\s*dear\s+[^,\n]+,',              # Dear Mr. Smith,
-            r'(?i)^\s*hi\s+\w+',                      # Hi John
-            r'(?i)^\s*hello\s+\w+',                   # Hello John
-            r'(?i)^\s*good\s+(?:morning|afternoon|evening)[,\s]+\w+',  # Good morning John
-            r'(?i)^\s*greetings',                     # Greetings
-            r'(?i)^\s*to\s+whom\s+it\s+may\s+concern',# To whom it may concern
-            r'(?i)^\s*hi\s+(?:all|team|everyone)',    # Hi all/team/everyone
-            r'(?i)^\s*dear\s+(?:sir|madam|team)',     # Dear Sir/Madam/Team
-        ]
-        
-        # Personal greeting patterns (subset of greeting patterns that include names)
-        personal_greeting_patterns = [
-            r'(?i)^\s*dear\s+(?!(?:sir|madam|team))[a-z]+',  # Dear [Name]
-            r'(?i)^\s*hi\s+[a-z]+',                          # Hi [Name]
-            r'(?i)^\s*hello\s+[a-z]+',                       # Hello [Name]
-            r'(?i)^\s*good\s+(?:morning|afternoon|evening)[,\s]+[a-z]+',  # Good morning [Name]
+            r'(?i)^\s*(?:dear|hi|hello|hey|good\s+(?:morning|afternoon|evening))\s+\w+',
+            r'(?i)^\s*(?:dear|hi|hello|hey|greetings)\s+(?:sir|madam|all|team|everyone)',
+            r'(?i)^\s*to\s+whom\s+it\s+may\s+concern',
         ]
         
         # Enhanced signature patterns
         signature_patterns = [
-            r'(?i)(?:regards|sincerely|yours|best|cheers|thank(?:s|\s+you)?)[,\s]*(?:\n|$)',  # Common closings
-            r'(?i)(?:^|\n)\s*(?:regards|sincerely|yours|best),?\s*\n\s*[a-z\s.]+$',           # Regards,\nJohn Smith
-            r'(?i)(?:^|\n)\s*[-_]{2,}\s*\n.*?(?:@|phone|tel|www)',                            # Signature with contact
-            r'(?i)(?:^|\n)\s*[a-z\s.]+\n.*?(?:department|division|team|inc\.|corp\.)',         # Professional signature
-            r'(?i)(?:^|\n)\s*(?:office|cell|tel|fax|email):\s*[0-9@a-z.]+',                   # Contact details
-            r'(?i)(?:^|\n)\s*www\.[a-z0-9-]+\.[a-z]{2,}',                                     # Website in signature
-            r'(?i)(?:^|\n)\s*(?:confidential|disclaimer|legal notice)',                        # Legal footer
+            r'(?i)(?:regards|sincerely|yours|best|cheers|thank(?:s|\s+you)?)[,\s]*(?:\n|$)',
+            r'(?i)(?:^|\n)\s*[-_]{2,}\s*\n',  # Signature line
+            r'(?i)(?:^|\n)\s*[a-z\s.]+\n.*?(?:@|phone|tel|www)',  # Name with contact info
+            r'(?i)(?:^|\n)\s*(?:office|cell|tel|fax|email):\s*[0-9@a-z.]+',
+            r'(?i)(?:^|\n)\s*www\.[a-z0-9-]+\.[a-z]{2,}',
+            r'(?i)(?:^|\n)\s*(?:confidential|disclaimer|legal notice)',
         ]
         
         # Check for greeting
-        features['has_greeting'] = int(any(re.search(pattern, first_three_lines, re.MULTILINE) for pattern in greeting_patterns))
-        features['has_personal_greeting'] = int(any(re.search(pattern, first_three_lines, re.MULTILINE) for pattern in personal_greeting_patterns))
+        for pattern in greeting_patterns:
+            match = re.search(pattern, first_five_lines, re.MULTILINE)
+            if match:
+                features['has_greeting'] = 1
+                logger.debug(f"Greeting detected: {match.group()}")
+                break
         
         # Check for signature
-        features['has_signature'] = int(any(re.search(pattern, last_three_lines, re.MULTILINE) for pattern in signature_patterns))
+        for pattern in signature_patterns:
+            match = re.search(pattern, last_five_lines, re.MULTILINE)
+            if match:
+                features['has_signature'] = 1
+                logger.debug(f"Signature detected: {match.group()}")
+                break
+        
+        # Check for personal greeting
+        if features['has_greeting']:
+            personal_greeting_pattern = r'(?i)^\s*(?:dear|hi|hello|hey|good\s+(?:morning|afternoon|evening))\s+[a-z]+\b'
+            if re.search(personal_greeting_pattern, first_five_lines, re.MULTILINE):
+                features['has_personal_greeting'] = 1
         
         # Check for company signature
         if features['has_signature']:
@@ -244,9 +245,10 @@ class EmailPhishingDetector:
                 r'(?i)(?:department|division|team)',
                 r'(?i)(?:www\.[a-z0-9-]+\.[a-z]{2,})',
             ]
-            features['has_company_signature'] = int(any(re.search(pattern, last_three_lines, re.MULTILINE) for pattern in company_patterns))
-        else:
-            features['has_company_signature'] = 0
+            for pattern in company_patterns:
+                if re.search(pattern, last_five_lines, re.MULTILINE):
+                    features['has_company_signature'] = 1
+                    break
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
@@ -284,8 +286,8 @@ class EmailPhishingDetector:
         logger.debug(f"Text length: {features['text_length']}")
         logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Personal: {bool(features['has_personal_greeting'])}")
         logger.debug(f"Has signature: {bool(features['has_signature'])} - Company: {bool(features['has_company_signature'])}")
-        logger.debug(f"First few lines:\n{text[:200]}")
-        logger.debug(f"Last few lines:\n{text[-200:]}")
+        logger.debug(f"First few lines:\n{first_five_lines}")
+        logger.debug(f"Last few lines:\n{last_five_lines}")
         
         return features
     
