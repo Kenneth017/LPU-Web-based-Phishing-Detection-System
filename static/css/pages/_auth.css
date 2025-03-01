@@ -1,3 +1,5 @@
+/* static/css/pages/_auth.css */
+
 :root {
     --accent-color: #50E3C2;
     --accent-color-hover: #3cd1b0;
@@ -5,6 +7,14 @@
     --text-color-secondary: #b3b3b3;
     --border-radius-sm: 4px;
     --border-radius-lg: 8px;
+}
+
+/* Remove any unwanted background/container for auth pages */
+.auth-page .content-wrapper {
+    background-color: transparent;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
 }
 
 /* Main container */
@@ -161,6 +171,12 @@
     border-radius: var(--border-radius-sm);
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
+}
+
+/* Hide redundant back to login button */
+.auth-page .btn-secondary[href*="login"],
+.auth-page .form-group .mt-3 {
+    display: none;
 }
 
 /* Responsive design */
