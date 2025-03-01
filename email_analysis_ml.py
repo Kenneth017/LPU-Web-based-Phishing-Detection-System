@@ -202,6 +202,16 @@ class EmailPhishingDetector:
         features['has_threat_count'] = sum(1 for word in self.suspicious_words['threat'] if word.lower() in text.lower())
         features['sensitive_info_requested'] = any(word in text.lower() for category in ['financial', 'personal'] 
                                                 for word in self.suspicious_words[category])
+        # Enhanced greeting detection
+        greeting_patterns = [
+            r'\b(?:dear|hi|hello|good\s+(?:morning|afternoon|evening))\s+[a-z0-9\s.,!-]+',
+            r'hi,\s+[a-z0-9\s.,!-]+',
+            r'hello,\s+[a-z0-9\s.,!-]+',
+            r'dear\s+[a-z0-9\s.,!-]+'
+        ]
+        
+        has_greeting = any(re.search(pattern, text.lower()) for pattern in greeting_patterns)
+        features['has_greeting'] = has_greeting
         
         return features
     
@@ -679,44 +689,54 @@ class EmailPhishingDetector:
         return None
     
     def _generate_explanation(self, features, probability, embedded_links, is_service_email=False):
-        """Generate explanation with service email consideration"""
         suspicious_indicators = []
         safe_indicators = []
         
-        # Check for service email characteristics
+        # Email structure analysis
+        if not features.get('has_greeting'):
+            suspicious_indicators.append("Missing proper greeting (e.g., 'Dear [Name]', 'Hi [Name]', 'Hello [Name]')")
+        else:
+            safe_indicators.append("Contains proper greeting")
+                
+        if not features.get('has_signature'):
+            suspicious_indicators.append("Missing email signature")
+        else:
+            safe_indicators.append("Contains proper signature")
+
+        # URL analysis
+        if features['url_count'] > 0:
+            if features['suspicious_url_count'] > 0:
+                suspicious_indicators.append(f"Contains {features['suspicious_url_count']} suspicious URLs")
+            else:
+                safe_indicators.append("All URLs appear legitimate")
+
+        # Content analysis
+        if features.get('contains_urgent') or features.get('urgent_count', 0) > 0:
+            suspicious_indicators.append("Contains urgent or time-sensitive language")
+        else:
+            safe_indicators.append("No urgent or time-sensitive language detected")
+
+        if features.get('contains_financial') or features.get('contains_personal'):
+            suspicious_indicators.append("Requests for sensitive information detected")
+        else:
+            safe_indicators.append("No requests for sensitive information")
+
+        # Service email indicators
         if is_service_email:
-            safe_indicators.append("Matches patterns of legitimate service email")
             if features.get('has_account_info'):
                 safe_indicators.append("Contains expected account information")
             if features.get('has_company_signature'):
                 safe_indicators.append("Contains valid company signature")
-        
-        # Email structure analysis
-        if features.get('has_greeting') and features.get('has_personal_greeting'):
-            safe_indicators.append("Contains personalized greeting")
-        elif not features.get('has_greeting'):
-            suspicious_indicators.append("Missing proper greeting")
-        
-        if features.get('has_signature') or features.get('has_company_signature'):
-            safe_indicators.append("Contains proper signature")
-        
-        # URL analysis
-        if embedded_links:
-            suspicious_urls = [link for link in embedded_links if link['suspicious']]
-            if suspicious_urls:
-                suspicious_indicators.append(f"Contains {len(suspicious_urls)} suspicious URLs")
-            else:
-                safe_indicators.append("All links appear legitimate")
-        
-        # Adjust confidence for service emails
+            if features.get('has_personal_greeting'):
+                safe_indicators.append("Contains personalized greeting")
+
+        # Determine confidence level
         if is_service_email and len(safe_indicators) > len(suspicious_indicators):
             confidence_level = "High"
             confidence_modifier = 0.8
         else:
-            confidence_level = "Medium" if probability[1] > 0.4 else "Low"
+            confidence_level = "High" if probability[1] > 0.8 else "Medium" if probability[1] > 0.6 else "Low"
             confidence_modifier = probability[1]
-        
-        confidence_level = "High" if probability[1] > 0.8 else "Medium" if probability[1] > 0.6 else "Low"
         
         return {
             'confidence_level': confidence_level,
@@ -725,7 +745,7 @@ class EmailPhishingDetector:
             'risk_assessment': {
                 'url_risk': 'High' if features['suspicious_url_count'] > 0 else 'Low',
                 'content_risk': 'High' if len(suspicious_indicators) > len(safe_indicators) else 'Low',
-                'structure_risk': 'High' if not features['has_greeting'] or not features['has_signature'] else 'Low'
+                'structure_risk': 'High' if not features.get('has_greeting') or not features.get('has_signature') else 'Low'
             }
         }
         
