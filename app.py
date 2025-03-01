@@ -2033,7 +2033,7 @@ async def email_analysis():
             result['html_content'] = email_data.get('html_content', '')
             result['attachments'] = email_data.get('attachments', [])
             
-            # Store essential data in session with all required features
+            # Inside your email_analysis route, when storing session data:
             session['email_analysis'] = {
                 'is_phishing': result['is_phishing'],
                 'confidence': float(result['confidence']),
@@ -2042,8 +2042,63 @@ async def email_analysis():
                     'subject': result['subject'],
                     'sender': result['sender'],
                     'date': result['date']
+                },
+                'explanation': {  # Add this block
+                    'confidence_level': 'High' if result['confidence'] > 0.8 else 'Medium' if result['confidence'] > 0.5 else 'Low',
+                    'suspicious_indicators': [],  # Will be populated below
+                    'safe_indicators': [],  # Will be populated below
+                    'risk_assessment': {
+                        'url_risk': 'High' if default_features['suspicious_url_count'] > 0 else 'Low',
+                        'content_risk': 'High' if result['is_phishing'] else 'Low',
+                        'structure_risk': 'High' if not default_features['has_greeting'] or not default_features['has_signature'] else 'Low'
+                    }
                 }
             }
+
+            # Generate indicators based on features
+            suspicious_indicators = []
+            safe_indicators = []
+            
+            # Email structure analysis
+            if not default_features['has_greeting']:
+                suspicious_indicators.append("Missing email greeting")
+            else:
+                safe_indicators.append("Contains proper greeting")
+            
+            if not default_features['has_signature']:
+                suspicious_indicators.append("Missing email signature")
+            else:
+                safe_indicators.append("Contains proper signature")
+            
+            # URL analysis
+            if default_features['url_count'] > 0:
+                if default_features['suspicious_url_count'] > 0:
+                    suspicious_indicators.append(f"Contains {default_features['suspicious_url_count']} suspicious URLs")
+                else:
+                    safe_indicators.append("All URLs appear legitimate")
+            
+            # Content analysis
+            if default_features.get('contains_urgent', False):
+                suspicious_indicators.append("Contains urgent or time-sensitive language")
+            else:
+                safe_indicators.append("No urgent or time-sensitive language detected")
+            
+            if default_features.get('contains_financial', False) or default_features.get('contains_personal', False):
+                suspicious_indicators.append("Requests for sensitive information detected")
+            else:
+                safe_indicators.append("No requests for sensitive information")
+            
+            # Service email indicators
+            if default_features.get('is_service_email', False):
+                safe_indicators.append("Matches patterns of legitimate service email")
+                if default_features.get('has_account_info', False):
+                    safe_indicators.append("Contains expected account information")
+                if default_features.get('has_company_signature', False):
+                    safe_indicators.append("Contains valid company signature")
+            
+            # Update the explanation with the generated indicators
+            session['email_analysis']['explanation']['suspicious_indicators'] = suspicious_indicators
+            session['email_analysis']['explanation']['safe_indicators'] = safe_indicators
 
             # Store larger data in a temporary file
             analysis_id = str(uuid.uuid4())
@@ -2093,15 +2148,6 @@ async def email_analysis_result():
         except FileNotFoundError:
             additional_data = {}
         
-        # Debug logging
-        logger.debug(f"Analysis data: {analysis}")
-        logger.debug(f"Additional data: {additional_data}")
-        
-        # Extract embedded_links from the analysis result if available
-        embedded_links = additional_data.get('embedded_links', [])
-        if not embedded_links and 'result' in additional_data:
-            embedded_links = additional_data['result'].get('embedded_links', [])
-        
         # Combine the data
         result = {
             'is_phishing': analysis['is_phishing'],
@@ -2112,18 +2158,18 @@ async def email_analysis_result():
             'date': analysis['metadata']['date'],
             'body': additional_data.get('body', ''),
             'html_content': additional_data.get('html_content', ''),
-            'embedded_links': embedded_links,
+            'embedded_links': additional_data.get('embedded_links', []),
             'attachments': additional_data.get('attachments', []),
-            'explanation': {  # Add this explanation block
-                'confidence_level': 'High' if analysis['confidence'] > 0.8 else 'Medium' if analysis['confidence'] > 0.5 else 'Low',
-                'suspicious_indicators': [],  # You may want to populate this based on your analysis
-                'safe_indicators': [],  # You may want to populate this based on your analysis
+            'explanation': analysis.get('explanation', {
+                'confidence_level': 'Medium',
+                'suspicious_indicators': [],
+                'safe_indicators': [],
                 'risk_assessment': {
-                    'url_risk': 'High' if analysis['features'].get('suspicious_url_count', 0) > 0 else 'Low',
-                    'content_risk': 'High' if analysis['is_phishing'] else 'Low',
-                    'structure_risk': 'High' if not analysis['features'].get('has_greeting', False) or not analysis['features'].get('has_signature', False) else 'Low'
+                    'url_risk': 'Low',
+                    'content_risk': 'Low',
+                    'structure_risk': 'Low'
                 }
-            }
+            })
         }
 
         # Debug logging for URL detection
