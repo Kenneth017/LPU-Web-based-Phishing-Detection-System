@@ -767,27 +767,77 @@ async def analyze_email():
         # Use your existing EmailPhishingDetector to analyze the email
         result = detector.analyze_email(email_content)
 
-        # Store the analysis result
+        # Store the analysis result with explanation
         user_id = session.get('user_id')
+        
+        # Generate explanation
+        confidence_level = 'High' if result['confidence'] > 0.8 else 'Medium' if result['confidence'] > 0.5 else 'Low'
+        
+        # Store essential data in session with all required features
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence': float(result['confidence']),
+            'features': result['features'],
+            'explanation': {  # Add explanation here
+                'confidence_level': confidence_level,
+                'suspicious_indicators': result.get('explanation', {}).get('suspicious_indicators', []),
+                'safe_indicators': result.get('explanation', {}).get('safe_indicators', []),
+                'risk_assessment': {
+                    'url_risk': 'High' if result['features'].get('suspicious_url_count', 0) > 0 else 'Low',
+                    'content_risk': 'High' if result['is_phishing'] else 'Low',
+                    'structure_risk': 'High' if not result['features'].get('has_greeting', False) 
+                                     or not result['features'].get('has_signature', False) else 'Low'
+                }
+            },
+            'metadata': {
+                'subject': result.get('subject', ''),
+                'sender': result.get('sender', ''),
+                'date': result.get('date', get_singapore_time())
+            }
+        }
+
+        # Store larger data in a temporary file
+        analysis_id = str(uuid.uuid4())
+        temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+        
+        with open(temp_data_path, 'w') as f:
+            json.dump({
+                'body': email_content,
+                'html_content': result.get('html_content', ''),
+                'embedded_links': result.get('embedded_links', []),
+                'attachments': result.get('attachments', [])
+            }, f)
+        
+        session['email_analysis_id'] = analysis_id
+
+        # Store in database
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("""
-            INSERT INTO analysis_history 
-            (user_id, input_string, input_type, is_malicious, metadata, analysis_date, main_verdict)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user_id,
-            email_content[:100],  # Store first 100 characters of email content
-            'email',
-            int(result['is_phishing']),
-            json.dumps(result),
-            get_singapore_time(),
-            'phishing' if result['is_phishing'] else 'safe'
-        ))
-        conn.commit()
-        conn.close()
+        try:
+            c.execute("""
+                INSERT INTO analysis_history 
+                (user_id, input_string, input_type, is_malicious, metadata, analysis_date, main_verdict)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                email_content[:100],  # Store first 100 characters of email content
+                'email',
+                int(result['is_phishing']),
+                json.dumps({
+                    'features': result['features'],
+                    'confidence': result['confidence'],
+                    'explanation': session['email_analysis']['explanation']  # Include explanation in metadata
+                }),
+                get_singapore_time(),
+                'phishing' if result['is_phishing'] else 'safe'
+            ))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error storing analysis in database: {str(e)}")
+        finally:
+            conn.close()
 
-        return jsonify(result)
+        return jsonify({'redirect': url_for('email_analysis_result')})
 
     except Exception as e:
         logger.error(f"Error analyzing email: {str(e)}")
