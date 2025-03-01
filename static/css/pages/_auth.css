@@ -9,18 +9,30 @@
     --border-radius-lg: 8px;
 }
 
-/* Remove any unwanted background/container for auth pages */
-.auth-page .content-wrapper {
+/* Override main content wrapper styles for auth pages */
+.auth-page .content-wrapper,
+.auth-page .main.content-wrapper {
     background-color: transparent;
     box-shadow: none;
     margin: 0;
     padding: 0;
+    max-width: none;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Hide the unwanted top container */
+.auth-page .content-wrapper > div:first-child:not(.auth-container) {
+    display: none;
 }
 
 /* Main container */
 .auth-container {
-    position: absolute;
-    top: 60px;
+    position: relative;  /* Change from absolute to relative */
+    top: 0;  /* Remove top positioning */
     left: 0;
     right: 0;
     bottom: 0;
@@ -31,6 +43,7 @@
     overflow-y: auto;
     padding: 20px;
     min-height: calc(100vh - 60px);
+    width: 100%;  /* Add this to ensure full width */
 }
 
 /* Card styling */
@@ -218,6 +231,14 @@
 
 @media (max-height: 600px) {
     .auth-container {
+        height: auto;
+        min-height: calc(100vh - 60px);
+    }
+}
+
+@media (max-width: 768px) {
+    .auth-page .content-wrapper,
+    .auth-page .main.content-wrapper {
         height: auto;
         min-height: calc(100vh - 60px);
     }
