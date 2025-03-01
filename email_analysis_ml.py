@@ -155,7 +155,17 @@ class EmailPhishingDetector:
         # First, split the text into lines and clean them
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         if not lines:
-            return features  # Return empty features if no content
+            # Initialize default values for empty content
+            features.update({
+                'text_length': 0,
+                'word_count': 0,
+                'avg_word_length': 0,
+                'has_greeting': 0,
+                'has_personal_greeting': 0,
+                'has_signature': 0,
+                'has_company_signature': 0
+            })
+            return features
         
         # Basic text features
         features['text_length'] = len(text)
@@ -180,6 +190,14 @@ class EmailPhishingDetector:
             r'(?i)^\s*dear\s+(?:sir|madam|team)',     # Dear Sir/Madam/Team
         ]
         
+        # Personal greeting patterns (subset of greeting patterns that include names)
+        personal_greeting_patterns = [
+            r'(?i)^\s*dear\s+(?!(?:sir|madam|team))[a-z]+',  # Dear [Name]
+            r'(?i)^\s*hi\s+[a-z]+',                          # Hi [Name]
+            r'(?i)^\s*hello\s+[a-z]+',                       # Hello [Name]
+            r'(?i)^\s*good\s+(?:morning|afternoon|evening)[,\s]+[a-z]+',  # Good morning [Name]
+        ]
+        
         # Enhanced signature patterns
         signature_patterns = [
             r'(?i)(?:regards|sincerely|yours|best|cheers|thank(?:s|\s+you)?)[,\s]*(?:\n|$)',  # Common closings
@@ -192,30 +210,22 @@ class EmailPhishingDetector:
         ]
         
         # Check for greeting
-        has_greeting = False
-        for pattern in greeting_patterns:
-            if re.search(pattern, first_three_lines, re.MULTILINE):
-                has_greeting = True
-                break
+        features['has_greeting'] = int(any(re.search(pattern, first_three_lines, re.MULTILINE) for pattern in greeting_patterns))
+        features['has_personal_greeting'] = int(any(re.search(pattern, first_three_lines, re.MULTILINE) for pattern in personal_greeting_patterns))
         
         # Check for signature
-        has_signature = False
-        for pattern in signature_patterns:
-            if re.search(pattern, last_three_lines, re.MULTILINE):
-                has_signature = True
-                break
+        features['has_signature'] = int(any(re.search(pattern, last_three_lines, re.MULTILINE) for pattern in signature_patterns))
         
-        # Log the analysis details
-        logger.debug("Greeting Analysis:")
-        logger.debug(f"First three lines: {first_three_lines}")
-        logger.debug(f"Has greeting: {has_greeting}")
-        logger.debug("Signature Analysis:")
-        logger.debug(f"Last three lines: {last_three_lines}")
-        logger.debug(f"Has signature: {has_signature}")
-        
-        # Set the features
-        features['has_greeting'] = int(has_greeting)
-        features['has_signature'] = int(has_signature)
+        # Check for company signature
+        if features['has_signature']:
+            company_patterns = [
+                r'(?i)(?:inc\.|corp\.|ltd\.|limited|company)',
+                r'(?i)(?:department|division|team)',
+                r'(?i)(?:www\.[a-z0-9-]+\.[a-z]{2,})',
+            ]
+            features['has_company_signature'] = int(any(re.search(pattern, last_three_lines, re.MULTILINE) for pattern in company_patterns))
+        else:
+            features['has_company_signature'] = 0
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
