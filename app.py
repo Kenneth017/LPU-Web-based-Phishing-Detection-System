@@ -756,115 +756,101 @@ async def extend_session():
 
 @app.route('/analyze_email', methods=['POST'])
 @login_required
-async def analyze_email():
+async def email_analysis():
     try:
-        data = await request.get_json()
-        email_content = data.get('email_content')
+        files = await request.files
+        if 'email_file' not in files:
+            return jsonify({'error': 'No file part'}), 400
         
-        if not email_content:
-            return jsonify({'error': 'No email content provided'}), 400
-
-        # Use your existing EmailPhishingDetector to analyze the email
-        result = detector.analyze_email(email_content)
-
-        # Store the analysis result with explanation
-        user_id = session.get('user_id')
+        file = files['email_file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
         
-        # Ensure all required features exist with default values
-        features = result.get('features', {})
-        default_features = {
-            'has_greeting': False,
-            'has_signature': False,
-            'url_count': 0,
-            'suspicious_url_count': 0,
-            'contains_urgent': False,
-            'urgent_count': 0,
-            'contains_personal': False,
-            'contains_financial': False,
-            'text_length': 0,
-            'word_count': 0,
-            'uppercase_ratio': 0.0,
-            'digit_ratio': 0.0,
-            'punctuation_ratio': 0.0,
-            'has_account_info': False,
-            'has_company_signature': False,
-            'has_personal_greeting': False,
-            'is_service_email': False
-        }
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in ['.msg', '.eml']:
+            return jsonify({'error': 'Invalid file type. Please upload a .msg or .eml file.'}), 400
 
-        # Update features with defaults for missing keys
-        for key, default_value in default_features.items():
-            if key not in features:
-                features[key] = default_value
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            await file.save(temp_file.name)
+            temp_file_path = temp_file.name
 
-        # Store essential data in session with all required features
-        session['email_analysis'] = {
-            'is_phishing': result['is_phishing'],
-            'confidence': float(result['confidence']),
-            'features': features,  # Use the updated features dictionary
-            'explanation': {
-                'confidence_level': 'High' if result['confidence'] > 0.8 else 'Medium' if result['confidence'] > 0.5 else 'Low',
-                'suspicious_indicators': result.get('explanation', {}).get('suspicious_indicators', []),
-                'safe_indicators': result.get('explanation', {}).get('safe_indicators', []),
-                'risk_assessment': {
-                    'url_risk': 'High' if features['suspicious_url_count'] > 0 else 'Low',
-                    'content_risk': 'High' if result['is_phishing'] else 'Low',
-                    'structure_risk': 'High' if not features['has_greeting'] or not features['has_signature'] else 'Low'
-                }
-            },
-            'metadata': {
-                'subject': result.get('subject', ''),
-                'sender': result.get('sender', ''),
-                'date': result.get('date', get_singapore_time())
-            }
-        }
-
-        # Store larger data in a temporary file
-        analysis_id = str(uuid.uuid4())
-        temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
-        
-        with open(temp_data_path, 'w') as f:
-            json.dump({
-                'body': email_content,
-                'html_content': result.get('html_content', ''),
-                'embedded_links': result.get('embedded_links', []),
-                'attachments': result.get('attachments', [])
-            }, f)
-        
-        session['email_analysis_id'] = analysis_id
-
-        # Store in database
-        conn = get_db_connection()
-        c = conn.cursor()
         try:
-            c.execute("""
-                INSERT INTO analysis_history 
-                (user_id, input_string, input_type, is_malicious, metadata, analysis_date, main_verdict)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                user_id,
-                email_content[:100],  # Store first 100 characters of email content
-                'email',
-                int(result['is_phishing']),
-                json.dumps({
-                    'features': features,  # Use the updated features dictionary
-                    'confidence': result['confidence'],
-                    'explanation': session['email_analysis']['explanation']
-                }),
-                get_singapore_time(),
-                'phishing' if result['is_phishing'] else 'safe'
-            ))
-            conn.commit()
-        except Exception as e:
-            logger.error(f"Error storing analysis in database: {str(e)}")
-        finally:
-            conn.close()
+            # Parse the email file
+            email_data = parse_email_file(temp_file_path, file_ext)
+            result = detector.analyze_email(email_data['body'], email_data.get('html_content', ''))
+            
+            # Create a dictionary with default values
+            default_features = {
+                'has_greeting': False,
+                'has_signature': False,
+                'url_count': 0,
+                'suspicious_url_count': 0,
+                'contains_urgent': False,
+                'urgent_count': 0,
+                'contains_personal': False,
+                'contains_financial': False,
+                'text_length': 0,
+                'word_count': 0,
+                'uppercase_ratio': 0.0,
+                'digit_ratio': 0.0,
+                'punctuation_ratio': 0.0,
+                'is_service_email': False
+            }
 
-        return jsonify({'redirect': url_for('email_analysis_result')})
+            # Update default_features with values from result['features'] if they exist
+            if 'features' in result:
+                for key in default_features.keys():
+                    if key in result['features']:
+                        default_features[key] = result['features'][key]
+
+            # Add additional information to the result
+            result['subject'] = email_data['subject']
+            result['sender'] = email_data['sender']
+            result['date'] = get_singapore_time()
+            result['html_content'] = email_data.get('html_content', '')
+            result['attachments'] = email_data.get('attachments', [])
+            
+            # Store essential data in session with all required features
+            session['email_analysis'] = {
+                'is_phishing': result['is_phishing'],
+                'confidence': float(result['confidence']),
+                'features': default_features,
+                'metadata': {
+                    'subject': result['subject'],
+                    'sender': result['sender'],
+                    'date': result['date']
+                }
+            }
+
+            # Store larger data in a temporary file
+            analysis_id = str(uuid.uuid4())
+            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+            
+            with open(temp_data_path, 'w') as f:
+                json.dump({
+                    'body': email_data['body'],
+                    'html_content': email_data.get('html_content', ''),
+                    'embedded_links': result.get('embedded_links', []),
+                    'attachments': email_data.get('attachments', [])
+                }, f)
+            
+            session['email_analysis_id'] = analysis_id
+
+            return jsonify({'redirect': url_for('email_analysis_result')})
+
+        except Exception as e:
+            logger.error(f"Error in email analysis: {str(e)}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+        finally:
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
 
     except Exception as e:
-        logger.error(f"Error in email analysis: {str(e)}")
-        return jsonify({'error': 'An error occurred while analyzing the email'}), 500
+        logger.error(f"Error in email analysis: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/force_logout/<int:user_id>', methods=['POST'])
 @login_required
