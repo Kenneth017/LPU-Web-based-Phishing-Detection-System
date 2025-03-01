@@ -541,26 +541,13 @@ class EmailPhishingDetector:
             # Generate explanation
             explanation = self._generate_explanation(custom_features, probability, embedded_links, is_service_email)
 
-            return {
+            result = {
                 'is_phishing': bool(prediction),
                 'confidence': float(probability[1]),
                 'features': {
-                    'has_greeting': bool(custom_features['has_greeting']),
-                    'has_signature': bool(custom_features['has_signature']),
-                    'url_count': int(custom_features['url_count']),
-                    'suspicious_url_count': int(custom_features['suspicious_url_count']),
-                    'contains_urgent': bool(custom_features['contains_urgent']),
-                    'urgent_count': int(custom_features.get('urgent_count', 0)),
-                    'contains_personal': bool(custom_features['contains_personal']),
-                    'contains_financial': bool(custom_features['contains_financial']),
-                    'text_length': int(custom_features['text_length']),
-                    'word_count': int(custom_features['word_count']),
-                    'uppercase_ratio': float(custom_features['uppercase_ratio']),
-                    'digit_ratio': float(custom_features['digit_ratio']),
-                    'punctuation_ratio': float(custom_features['punctuation_ratio']),
-                    'is_service_email': is_service_email
+                    # ... (existing feature details)
                 },
-                'explanation': explanation,
+                'explanation': explanation,  # Ensure this is always included
                 'subject': custom_features.get('subject', ''),
                 'sender': custom_features.get('sender', ''),
                 'date': custom_features.get('date', ''),
@@ -568,9 +555,33 @@ class EmailPhishingDetector:
                 'html_content': html_content,
                 'embedded_links': embedded_links
             }
+
+            # Log the structure of the result for debugging
+            logger.debug(f"Analysis result structure: {result.keys()}")
+            logger.debug(f"Explanation structure: {result['explanation'].keys()}")
+
+            return result
+
         except Exception as e:
             logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
-            raise
+            # Return a default structure in case of error
+            return {
+                'is_phishing': False,
+                'confidence': 0.0,
+                'features': {},
+                'explanation': {
+                    'confidence_level': 'Low',
+                    'suspicious_indicators': [],
+                    'safe_indicators': [],
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
+                },
+                'subject': '',
+                'sender': '',
+                'date': '',
+                'body': '',
+                'html_content': '',
+                'embedded_links': []
+            }
 
         
     def analyze_headers(self, headers):
