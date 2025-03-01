@@ -152,19 +152,40 @@ class EmailPhishingDetector:
         """Enhanced feature extraction with more sophisticated analysis"""
         features = {}
         
+        # Initialize all required features with default values
+        default_features = {
+            'text_length': 0,
+            'word_count': 0,
+            'avg_word_length': 0,
+            'has_greeting': 0,
+            'has_personal_greeting': 0,
+            'has_signature': 0,
+            'has_company_signature': 0,
+            'url_count': 0,
+            'suspicious_url_count': 0,
+            'url_to_text_ratio': 0,
+            'uppercase_ratio': 0,
+            'digit_ratio': 0,
+            'punctuation_ratio': 0,
+            'contains_html': 0,
+            'html_tag_count': 0,
+            'mismatched_links': 0,
+            'has_urgent_count': 0,
+            'has_threat_count': 0,
+            'sensitive_info_requested': 0
+        }
+        
+        # Initialize suspicious word features
+        for category in self.suspicious_words.keys():
+            default_features[f'contains_{category}'] = 0
+            default_features[f'{category}_count'] = 0
+        
+        # Update features with default values
+        features.update(default_features)
+        
         # First, split the text into lines and clean them
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         if not lines:
-            # Initialize default values for empty content
-            features.update({
-                'text_length': 0,
-                'word_count': 0,
-                'avg_word_length': 0,
-                'has_greeting': 0,
-                'has_personal_greeting': 0,
-                'has_signature': 0,
-                'has_company_signature': 0
-            })
             return features
         
         # Basic text features
