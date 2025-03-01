@@ -152,53 +152,70 @@ class EmailPhishingDetector:
         """Enhanced feature extraction with more sophisticated analysis"""
         features = {}
         
+        # First, split the text into lines and clean them
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if not lines:
+            return features  # Return empty features if no content
+        
         # Basic text features
         features['text_length'] = len(text)
         words = text.split()
         features['word_count'] = len(words)
         features['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
         
-        # Service email indicators
-        features['is_service_email'] = self._check_service_email_patterns(text)
-        features['has_account_info'] = bool(re.search(r'(account|subscription|plan|renewal)', text.lower()))
+        # Get first and last few lines for analysis
+        first_three_lines = ' '.join(lines[:3]).lower()
+        last_three_lines = ' '.join(lines[-3:]).lower()
         
-        # Enhanced greeting detection - Multiple patterns for different formats
+        # Enhanced greeting patterns
         greeting_patterns = [
-            r'(?i)^[^\n]*(?:dear\s+(?:mr\.|ms\.|mrs\.|dr\.)?)\s*[a-z0-9\s]+[,.]?',
-            r'(?i)^[^\n]*(?:to\s+whom\s+it\s+may\s+concern)[,.]?',
-            r'(?i)^[^\n]*(?:hi|hello|hey)\s*[a-z0-9\s]+[,.]?',
-            r'(?i)^[^\n]*(?:good\s+(?:morning|afternoon|evening))\s*[a-z0-9\s]*[,.]?',
-            r'(?i)^[^\n]*(?:greetings|salutations)',
-            r'(?i)^[^\n]*(?:hi|hello|dear)\s+(?:all|team|everyone|colleagues)[,.]?',
-            r'(?i)^[^\n]*[A-Z][a-z]+[,.]'
+            r'(?i)^\s*dear\s+\w+',                    # Dear John
+            r'(?i)^\s*dear\s+[^,\n]+,',              # Dear Mr. Smith,
+            r'(?i)^\s*hi\s+\w+',                      # Hi John
+            r'(?i)^\s*hello\s+\w+',                   # Hello John
+            r'(?i)^\s*good\s+(?:morning|afternoon|evening)[,\s]+\w+',  # Good morning John
+            r'(?i)^\s*greetings',                     # Greetings
+            r'(?i)^\s*to\s+whom\s+it\s+may\s+concern',# To whom it may concern
+            r'(?i)^\s*hi\s+(?:all|team|everyone)',    # Hi all/team/everyone
+            r'(?i)^\s*dear\s+(?:sir|madam|team)',     # Dear Sir/Madam/Team
         ]
         
-        # Enhanced signature detection patterns
+        # Enhanced signature patterns
         signature_patterns = [
-            r'(?i)(?:regards|sincerely|best|cheers|thanks|thank\s+you|yours\s+(?:truly|sincerely)|warmly)[,\s]*(?:\r?\n|\s*$)',
-            r'(?i)(?:^|\n)[\s-]*[A-Z][a-z]+\s+[A-Z][a-z]+(?:\n|$)',
-            r'(?i)(?:^|\n).*(?:inc\.|corp\.|ltd\.|limited|company).*$',
-            r'(?i)(?:tel|phone|email|web|www|https?://)',
-            r'(?i)(?:disclaimer:|confidentiality\s+notice:|privacy\s+notice:)',
-            r'(?i)(?:follow\s+us|connect\s+with\s+us|social\s+media)',
-            r'(?i)(?:department\s+of|division\s+of|team)',
-            r'(?i)(?:ph\.d\.|m\.d\.|mba|cpa|esq\.)',
-            r'(?i).*@.*\.[a-z]{2,}$'  # Email address at the end
+            r'(?i)(?:regards|sincerely|yours|best|cheers|thank(?:s|\s+you)?)[,\s]*(?:\n|$)',  # Common closings
+            r'(?i)(?:^|\n)\s*(?:regards|sincerely|yours|best),?\s*\n\s*[a-z\s.]+$',           # Regards,\nJohn Smith
+            r'(?i)(?:^|\n)\s*[-_]{2,}\s*\n.*?(?:@|phone|tel|www)',                            # Signature with contact
+            r'(?i)(?:^|\n)\s*[a-z\s.]+\n.*?(?:department|division|team|inc\.|corp\.)',         # Professional signature
+            r'(?i)(?:^|\n)\s*(?:office|cell|tel|fax|email):\s*[0-9@a-z.]+',                   # Contact details
+            r'(?i)(?:^|\n)\s*www\.[a-z0-9-]+\.[a-z]{2,}',                                     # Website in signature
+            r'(?i)(?:^|\n)\s*(?:confidential|disclaimer|legal notice)',                        # Legal footer
         ]
         
-        # Check for greeting patterns
-        has_greeting = any(re.search(pattern, text, re.MULTILINE) for pattern in greeting_patterns)
+        # Check for greeting
+        has_greeting = False
+        for pattern in greeting_patterns:
+            if re.search(pattern, first_three_lines, re.MULTILINE):
+                has_greeting = True
+                break
+        
+        # Check for signature
+        has_signature = False
+        for pattern in signature_patterns:
+            if re.search(pattern, last_three_lines, re.MULTILINE):
+                has_signature = True
+                break
+        
+        # Log the analysis details
+        logger.debug("Greeting Analysis:")
+        logger.debug(f"First three lines: {first_three_lines}")
+        logger.debug(f"Has greeting: {has_greeting}")
+        logger.debug("Signature Analysis:")
+        logger.debug(f"Last three lines: {last_three_lines}")
+        logger.debug(f"Has signature: {has_signature}")
+        
+        # Set the features
         features['has_greeting'] = int(has_greeting)
-        
-        # Check for personal greeting
-        first_line = text.split('\n')[0] if text else ''
-        has_personal_name = bool(re.search(r'[A-Z][a-z]+', first_line))
-        features['has_personal_greeting'] = int(has_greeting and has_personal_name)
-        
-        # Check for signature patterns
-        has_signature = any(re.search(pattern, text, re.MULTILINE | re.DOTALL) for pattern in signature_patterns)
         features['has_signature'] = int(has_signature)
-        features['has_company_signature'] = int(bool(re.search(r'(at|your friends at|team|from)\s+[A-Z][a-zA-Z\s]+', text, re.IGNORECASE)))
         
         # URL features
         embedded_links = self._extract_urls(text, html_content)
@@ -715,64 +732,144 @@ class EmailPhishingDetector:
         return None
     
     def _generate_explanation(self, features, probability, embedded_links, is_service_email=False):
+        """
+        Generate a detailed explanation of the email analysis results.
+        
+        Args:
+            features (dict): Extracted email features
+            probability (float): Model prediction probability
+            embedded_links (list): List of detected URLs and their analysis
+            is_service_email (bool): Whether the email appears to be from a legitimate service
+        
+        Returns:
+            dict: Detailed explanation of the analysis
+        """
         suspicious_indicators = []
         safe_indicators = []
         
-        # Email structure analysis
-        has_greeting = features.get('has_greeting', 0) == 1
-        has_signature = features.get('has_signature', 0) == 1
-        
-        if not has_greeting:
-            suspicious_indicators.append("Missing proper greeting (e.g., 'Dear [Name]', 'Hi [Name]', 'Hello [Name]')")
+        # 1. Email Structure Analysis
+        if features.get('has_greeting', 0):
+            safe_indicators.append("Contains proper email greeting")
+            if features.get('has_personal_greeting', 0):
+                safe_indicators.append("Greeting appears to be personalized")
         else:
-            safe_indicators.append("Contains proper greeting")
+            suspicious_indicators.append("Missing proper email greeting (e.g., 'Dear [Name]', 'Hello [Name]')")
         
-        if not has_signature:
-            suspicious_indicators.append("Missing email signature")
+        if features.get('has_signature', 0):
+            safe_indicators.append("Contains proper email signature")
+            if features.get('has_company_signature', 0):
+                safe_indicators.append("Contains official company signature")
         else:
-            safe_indicators.append("Contains proper signature")
-
-        # Determine structure risk
-        structure_risk = 'Low' if has_greeting and has_signature else 'Medium' if (has_greeting or has_signature) else 'High'
-
-        # URL analysis
-        if features['url_count'] > 0:
-            if features['suspicious_url_count'] > 0:
-                suspicious_indicators.append(f"Contains {features['suspicious_url_count']} suspicious URLs out of {features['url_count']} total URLs")
+            suspicious_indicators.append("Missing email signature (e.g., sender's name, contact information)")
+        
+        # 2. URL Analysis
+        url_count = features.get('url_count', 0)
+        suspicious_url_count = features.get('suspicious_url_count', 0)
+        
+        if url_count > 0:
+            if suspicious_url_count > 0:
+                suspicious_indicators.append(
+                    f"Contains {suspicious_url_count} suspicious URL(s) out of {url_count} total URLs"
+                )
             else:
-                safe_indicators.append(f"Contains {features['url_count']} legitimate URLs")
+                safe_indicators.append(f"Contains {url_count} legitimate URL(s)")
+                
+            # Check URL to text ratio
+            if features.get('url_to_text_ratio', 0) > 0.1:  # More than 10% of content is URLs
+                suspicious_indicators.append("High ratio of URLs to text content")
         else:
             safe_indicators.append("No URLs found in the email")
-
-        # Content analysis
-        if features.get('contains_urgent') or features.get('urgent_count', 0) > 0:
-            suspicious_indicators.append(f"Contains urgent or time-sensitive language (count: {features.get('urgent_count', 0)})")
+        
+        # 3. Content Analysis
+        # Urgent language
+        urgent_count = features.get('urgent_count', 0)
+        if urgent_count > 0:
+            suspicious_indicators.append(
+                f"Contains urgent or time-sensitive language (found {urgent_count} instances)"
+            )
         else:
             safe_indicators.append("No urgent or time-sensitive language detected")
-
-        if features.get('contains_financial') or features.get('contains_personal'):
-            suspicious_indicators.append("Requests for sensitive information detected")
+        
+        # Sensitive information requests
+        if features.get('contains_financial', 0) or features.get('contains_personal', 0):
+            types = []
+            if features.get('contains_financial', 0):
+                types.append("financial")
+            if features.get('contains_personal', 0):
+                types.append("personal")
+            suspicious_indicators.append(
+                f"Requests for sensitive information detected ({' and '.join(types)})"
+            )
         else:
-            safe_indicators.append("No requests for sensitive information")
-
-        # Check for service email indicators
+            safe_indicators.append("No requests for sensitive information detected")
+        
+        # Threat language
+        threat_count = features.get('has_threat_count', 0)
+        if threat_count > 0:
+            suspicious_indicators.append(
+                f"Contains threatening language (found {threat_count} instances)"
+            )
+        
+        # 4. Service Email Analysis
         if is_service_email:
             safe_indicators.append("Matches patterns of legitimate service email")
-            if features.get('has_account_info'):
+            if features.get('has_account_info', 0):
                 safe_indicators.append("Contains expected account information")
-
-        # Determine content risk
-        content_risk = 'High' if len(suspicious_indicators) > len(safe_indicators) else 'Low'
-
-        # Determine URL risk
-        url_risk = 'High' if features['suspicious_url_count'] > 0 else 'Low'
-
-        # Determine confidence level
+            if features.get('has_unsubscribe', 0):
+                safe_indicators.append("Contains valid unsubscribe option")
+        
+        # 5. HTML Content Analysis
+        if features.get('contains_html', 0):
+            if features.get('mismatched_links', 0) > 0:
+                suspicious_indicators.append("Contains mismatched or disguised links")
+            if features.get('has_form', 0):
+                suspicious_indicators.append("Contains embedded form (unusual for legitimate emails)")
+        
+        # 6. Risk Assessment
+        # Structure Risk
+        if features.get('has_greeting', 0) and features.get('has_signature', 0):
+            structure_risk = 'Low'
+        elif features.get('has_greeting', 0) or features.get('has_signature', 0):
+            structure_risk = 'Medium'
+        else:
+            structure_risk = 'High'
+        
+        # URL Risk
+        if suspicious_url_count > 0:
+            url_risk = 'High'
+        elif url_count > 0:
+            url_risk = 'Medium'
+        else:
+            url_risk = 'Low'
+        
+        # Content Risk
+        suspicious_content_count = sum([
+            features.get('urgent_count', 0),
+            features.get('has_threat_count', 0),
+            features.get('contains_financial', 0),
+            features.get('contains_personal', 0),
+            features.get('mismatched_links', 0)
+        ])
+        
+        if suspicious_content_count > 2:
+            content_risk = 'High'
+        elif suspicious_content_count > 0:
+            content_risk = 'Medium'
+        else:
+            content_risk = 'Low'
+        
+        # 7. Confidence Level Determination
         if is_service_email and len(safe_indicators) > len(suspicious_indicators):
             confidence_level = "High"
         else:
-            confidence_level = "High" if probability[1] > 0.8 else "Medium" if probability[1] > 0.6 else "Low"
+            if probability[1] > 0.8:
+                confidence_level = "High"
+            elif probability[1] > 0.6:
+                confidence_level = "Medium"
+            else:
+                confidence_level = "Low"
         
+        # 8. Generate Final Explanation
         return {
             'confidence_level': confidence_level,
             'suspicious_indicators': suspicious_indicators,
@@ -781,6 +878,24 @@ class EmailPhishingDetector:
                 'url_risk': url_risk,
                 'content_risk': content_risk,
                 'structure_risk': structure_risk
+            },
+            'details': {
+                'url_analysis': {
+                    'total_urls': url_count,
+                    'suspicious_urls': suspicious_url_count,
+                    'url_ratio': features.get('url_to_text_ratio', 0)
+                },
+                'content_analysis': {
+                    'urgent_language_count': urgent_count,
+                    'threat_language_count': threat_count,
+                    'has_sensitive_requests': features.get('contains_financial', 0) or features.get('contains_personal', 0),
+                    'has_html_forms': features.get('has_form', 0)
+                },
+                'structure_analysis': {
+                    'has_greeting': features.get('has_greeting', 0),
+                    'has_signature': features.get('has_signature', 0),
+                    'has_company_signature': features.get('has_company_signature', 0)
+                }
             }
         }
         
