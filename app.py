@@ -2138,8 +2138,18 @@ async def email_analysis_result():
             'date': analysis['metadata']['date'],
             'body': additional_data.get('body', ''),
             'html_content': additional_data.get('html_content', ''),
-            'embedded_links': embedded_links,  # Use the extracted embedded_links
-            'attachments': additional_data.get('attachments', [])
+            'embedded_links': embedded_links,
+            'attachments': additional_data.get('attachments', []),
+            'explanation': {  # Add this explanation block
+                'confidence_level': 'High' if analysis['confidence'] > 0.8 else 'Medium' if analysis['confidence'] > 0.5 else 'Low',
+                'suspicious_indicators': [],  # You may want to populate this based on your analysis
+                'safe_indicators': [],  # You may want to populate this based on your analysis
+                'risk_assessment': {
+                    'url_risk': 'High' if analysis['features'].get('suspicious_url_count', 0) > 0 else 'Low',
+                    'content_risk': 'High' if analysis['is_phishing'] else 'Low',
+                    'structure_risk': 'High' if not analysis['features'].get('has_greeting', False) or not analysis['features'].get('has_signature', False) else 'Low'
+                }
+            }
         }
 
         # Debug logging for URL detection
