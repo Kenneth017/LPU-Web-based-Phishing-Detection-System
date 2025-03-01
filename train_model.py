@@ -21,7 +21,7 @@ def train_and_save_model():
             learning_rate=0.1,
             max_depth=5,
             random_state=42,
-            eval_metric='logloss'  # Added for compatibility
+            eval_metric='logloss'
         )
         
         # Load dataset
@@ -57,13 +57,12 @@ def train_and_save_model():
             else:
                 logger.info("Feature importance analysis is not available.")
         
-        # Save model with special handling for XGBoost
+        # Save model
         logger.info("Saving model...")
         save_path = 'models'
         os.makedirs(save_path, exist_ok=True)
         
         if isinstance(detector.model, XGBClassifier):
-            # Save XGBoost model in both formats for compatibility
             model_json_path = os.path.join(save_path, 'xgboost_model.json')
             detector.model.save_model(model_json_path)
             logger.info(f"XGBoost model saved in JSON format at {model_json_path}")
@@ -91,7 +90,10 @@ def train_and_save_model():
             logger.info(f"Is Phishing: {result['is_phishing']}")
             logger.info(f"Confidence: {result['confidence']:.2f}")
             logger.info("\nExplanation:")
-            logger.info(f"Confidence Level: {result['explanation']['confidence']}")
+            logger.info(f"Confidence Level: {result['explanation']['confidence_level']}")
+            logger.info("\nRisk Assessment:")
+            for risk_type, level in result['explanation']['risk_assessment'].items():
+                logger.info(f"- {risk_type}: {level}")
             logger.info("\nSuspicious Indicators:")
             for indicator in result['explanation']['suspicious_indicators']:
                 logger.info(f"- {indicator}")
