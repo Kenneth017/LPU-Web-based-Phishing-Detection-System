@@ -2060,15 +2060,15 @@ async def email_analysis():
             safe_indicators = []
             
             # Email structure analysis
-            if not default_features['has_greeting']:
-                suspicious_indicators.append("Missing email greeting")
-            else:
+            if default_features['has_greeting']:
                 safe_indicators.append("Contains proper greeting")
-            
-            if not default_features['has_signature']:
-                suspicious_indicators.append("Missing email signature")
             else:
+                suspicious_indicators.append("Missing email greeting")
+            
+            if default_features['has_signature']:
                 safe_indicators.append("Contains proper signature")
+            else:
+                suspicious_indicators.append("Missing email signature")
             
             # URL analysis
             if default_features['url_count'] > 0:
@@ -2076,6 +2076,8 @@ async def email_analysis():
                     suspicious_indicators.append(f"Contains {default_features['suspicious_url_count']} suspicious URLs")
                 else:
                     safe_indicators.append("All URLs appear legitimate")
+            else:
+                safe_indicators.append("No links found in the email")
             
             # Content analysis
             if default_features.get('contains_urgent', False):
@@ -2083,10 +2085,21 @@ async def email_analysis():
             else:
                 safe_indicators.append("No urgent or time-sensitive language detected")
             
-            if default_features.get('contains_financial', False) or default_features.get('contains_personal', False):
-                suspicious_indicators.append("Requests for sensitive information detected")
+            # Improved sensitive information check
+            sensitive_keywords = ['password', 'credit card', 'social security', 'bank account', 'login credentials']
+            email_text_lower = email_data['body'].lower()
+            contains_sensitive = any(keyword in email_text_lower for keyword in sensitive_keywords)
+            
+            if contains_sensitive:
+                suspicious_indicators.append("Potential sensitive information requested")
             else:
-                safe_indicators.append("No requests for sensitive information")
+                safe_indicators.append("No obvious requests for sensitive information detected")
+            
+            # Attachment analysis
+            if email_data.get('attachments', []):
+                suspicious_indicators.append(f"Contains {len(email_data['attachments'])} attachment(s)")
+            else:
+                safe_indicators.append("No attachments found")
             
             # Service email indicators
             if default_features.get('is_service_email', False):
@@ -2099,6 +2112,13 @@ async def email_analysis():
             # Update the explanation with the generated indicators
             session['email_analysis']['explanation']['suspicious_indicators'] = suspicious_indicators
             session['email_analysis']['explanation']['safe_indicators'] = safe_indicators
+            
+            # Update risk assessment
+            session['email_analysis']['explanation']['risk_assessment'] = {
+                'url_risk': 'High' if default_features['suspicious_url_count'] > 0 else 'Low',
+                'content_risk': 'High' if contains_sensitive or default_features.get('contains_urgent', False) else 'Low',
+                'structure_risk': 'High' if not default_features['has_greeting'] or not default_features['has_signature'] else 'Low'
+            }
 
             # Store larger data in a temporary file
             analysis_id = str(uuid.uuid4())
