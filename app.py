@@ -2806,11 +2806,7 @@ async def admin_initiate_reset(user_id):
 async def api_analyze_email():
     try:
         data = await request.json
-        email_content = data['email_content']
-        
-        # Use your existing analysis logic
-        result = detector.analyze_email(email_content, is_browser_extension=True)
-        
+        result = detector.analyze_email(data['email_content'], is_browser_extension=True)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in api_analyze_email: {str(e)}", exc_info=True)
