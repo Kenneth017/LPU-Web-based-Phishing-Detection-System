@@ -260,6 +260,12 @@ class EmailPhishingDetector:
                     features['has_company_signature'] = 1
                     break
         
+        # Improve the sensitive information detection
+        sensitive_keywords = ['password', 'credit card', 'social security', 'bank account', 'login credentials']
+        contains_sensitive = any(keyword in text.lower() for keyword in sensitive_keywords)
+        features['contains_personal'] = int(contains_sensitive)
+        features['contains_financial'] = int(contains_sensitive)
+
         # URL features
         embedded_links = self._extract_urls(text, html_content)
         features['url_count'] = len(embedded_links)
