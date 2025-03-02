@@ -210,18 +210,26 @@ class EmailPhishingDetector:
         
         # Enhanced greeting patterns
         greeting_patterns = [
+            r'(?i)^\s*hi,?\s+[a-z\s]+!?',  # Matches "Hi, Kenneth Charles!"
             r'(?i)^\s*dear\s+\w+',
-            r'(?i)^\s*hi\s+\w+',
             r'(?i)^\s*hello\s+\w+',
-            r'(?i)^\s*good\s+(?:morning|afternoon|evening)\s+\w+',
+            r'(?i)^\s*good\s+(?:morning|afternoon|evening)[,\s]+\w+',
             r'(?i)^\s*greetings',
+            r'(?i)^\s*to\s+whom\s+it\s+may\s+concern',
+            r'(?i)^\s*hi\s+(?:all|team|everyone)',
+            r'(?i)^\s*dear\s+(?:sir|madam|team)',
         ]
         
         # Enhanced signature patterns
         signature_patterns = [
-            r'(?i)(?:regards|sincerely|yours|best|cheers)[,\s]*$',
-            r'(?i)(?:regards|sincerely|yours|best|cheers)[,\s]*\n+\s*[\w\s]+$',
-            r'(?i)^[\s\n]*best\s+regards.*$',
+            r'(?i)copyright\s+©.*reserved',  # Matches copyright notice
+            r'(?i)this\s+is\s+a\s+system-generated',  # Matches system-generated message
+            r'(?i)(?:regards|sincerely|yours|best|cheers)[,\s]*(?:\r?\n|\s*$)',
+            r'(?i)(?:^|\n)\s*(?:regards|sincerely|yours|best),?\s*\n\s*[a-z\s.]+$',
+            r'(?i)(?:^|\n)\s*[-_]{2,}\s*\n.*?(?:@|phone|tel|www)',
+            r'(?i)(?:^|\n)\s*[a-z\s.]+\n.*?(?:department|division|team|inc\.|corp\.)',
+            r'(?i)(?:^|\n)\s*(?:office|cell|tel|fax|email):\s*[0-9@a-z.]+',
+            r'(?i)(?:^|\n)\s*www\.[a-z0-9-]+\.[a-z]{2,}',
         ]
         
         # Check for greeting
@@ -355,10 +363,16 @@ class EmailPhishingDetector:
         except:
             return True  # If URL parsing fails, consider it suspicious
 
+    # Modify the text preprocessing to better handle HTML content
     def _preprocess_text(self, text):
         """Enhanced text preprocessing"""
         if not isinstance(text, str):
             return ""
+        
+        # Extract text from HTML if present
+        if '<html' in text.lower():
+            soup = BeautifulSoup(text, 'html.parser')
+            text = soup.get_text()
         
         # Convert to lowercase
         text = text.lower()
