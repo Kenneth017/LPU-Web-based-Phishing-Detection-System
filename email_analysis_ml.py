@@ -667,8 +667,8 @@ class EmailPhishingDetector:
                 prediction = 0  # Mark as safe
                 probability = np.array([0.9, 0.1])  # High confidence in safety
             
-            # Extract URLs from the email
-            embedded_links = self._extract_urls(email_content, html_content)
+            # Extract URLs from the email body
+            embedded_links = self._extract_urls(body, html_content)
             
             logger.info(f"Analysis complete. Prediction: {prediction}, Probability: {probability[1]}")
             
@@ -771,7 +771,7 @@ class EmailPhishingDetector:
                 'subject': '',
                 'sender': '',
                 'date': '',
-                'body': '',
+                'body': body,
                 'html_content': '',
                 'embedded_links': []
             }
@@ -790,28 +790,6 @@ class EmailPhishingDetector:
                 }
             
             return error_response
-
-        except Exception as e:
-            logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
-            # Return a default structure in case of error
-            return {
-                'is_phishing': False,
-                'confidence': 0.0,
-                'features': {},
-                'explanation': {
-                    'confidence_level': 'Low',
-                    'suspicious_indicators': [],
-                    'safe_indicators': [],
-                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
-                },
-                'subject': '',
-                'sender': '',
-                'date': '',
-                'body': '',
-                'html_content': '',
-                'embedded_links': []
-            }
-
         
     def analyze_headers(self, headers):
         suspicious_headers = []
