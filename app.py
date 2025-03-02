@@ -2803,14 +2803,18 @@ async def admin_initiate_reset(user_id):
     return redirect(url_for('manage_users'))
 
 @app.route('/api/analyze_email', methods=['POST'])
-def api_analyze_email():
-    data = request.json
-    email_content = data['email_content']
-    
-    # Use your existing analysis logic
-    result = detector.analyze_email(email_content)
-    
-    return jsonify(result)
+async def api_analyze_email():
+    try:
+        data = await request.json
+        email_content = data['email_content']
+        
+        # Use your existing analysis logic
+        result = detector.analyze_email(email_content, is_browser_extension=True)
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in api_analyze_email: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(404)
 async def not_found(e):
