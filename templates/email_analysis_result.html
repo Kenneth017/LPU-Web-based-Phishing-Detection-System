@@ -65,8 +65,12 @@
                     <strong>Email Structure:</strong> 
                     {% if result.features.has_greeting and result.features.has_signature %}
                         Contains proper greeting and signature (Good sign)
+                    {% elif result.features.has_greeting %}
+                        Contains proper greeting but missing signature (Potential red flag)
+                    {% elif result.features.has_signature %}
+                        Contains proper signature but missing greeting (Potential red flag)
                     {% else %}
-                        Missing proper greeting or signature (Potential red flag)
+                        Missing proper greeting and signature (Potential red flag)
                     {% endif %}
                 </li>
                 <li>
@@ -91,12 +95,13 @@
                         No urgent or time-sensitive language detected (Good sign)
                     {% endif %}
                 </li>
+                <!-- Update the Sensitive Information Requests section -->
                 <li>
                     <strong>Sensitive Information Requests:</strong>
                     {% if result.features.contains_personal or result.features.contains_financial %}
-                        Requests for personal or financial information detected (Potential red flag)
+                        Potential requests for personal or financial information detected (Exercise caution)
                     {% else %}
-                        No requests for sensitive information detected (Good sign)
+                        No obvious requests for sensitive information detected (Good sign)
                     {% endif %}
                 </li>
                 <li>
