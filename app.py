@@ -2802,6 +2802,16 @@ async def admin_initiate_reset(user_id):
 
     return redirect(url_for('manage_users'))
 
+@app.route('/api/analyze_email', methods=['POST'])
+def api_analyze_email():
+    data = request.json
+    email_content = data['email_content']
+    
+    # Use your existing analysis logic
+    result = detector.analyze_email(email_content)
+    
+    return jsonify(result)
+
 @app.errorhandler(404)
 async def not_found(e):
     logger.error(f"404 Not Found: {request.url}")
