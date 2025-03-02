@@ -487,3 +487,32 @@ details[open] summary {
     margin: 1rem 0;
     border-radius: 0 4px 4px 0;
 }
+
+#toggle-debug {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.debug-info {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 20px;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.debug-info pre {
+    margin: 0;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #eee;
+}
