@@ -580,25 +580,36 @@ class EmailPhishingDetector:
             
             # Handle browser extension input
             if is_browser_extension:
-                try:
-                    # Extract HTML content if it's embedded in email_content
-                    if '<html' in email_content:
-                        soup = BeautifulSoup(email_content, 'html.parser')
-                        html_content = str(soup)
-                        email_content = soup.get_text()
-                        logger.debug("Successfully extracted HTML content from browser extension")
-                except Exception as e:
-                    logger.error(f"Error processing browser extension input: {str(e)}")
-            
-            processed_text = self._preprocess_text(email_content)
+                if isinstance(email_content, dict):
+                    body = email_content.get('body', '')
+                    subject = email_content.get('subject', '')
+                    sender = email_content.get('sender', '')
+                    html_content = email_content.get('html', '')
+                else:
+                    logger.error("Invalid email content format from browser extension")
+                    raise ValueError("Invalid email content format")
+            else:
+                body = email_content
+                subject = ''
+                sender = ''
+
+            if not body:
+                logger.warning("Empty email content")
+                return self._generate_error_response(is_browser_extension)
+
+            processed_text = self._preprocess_text(body)
             
             # Extract features
             logger.debug("Extracting features")
             text_features = self.tfidf.transform([processed_text])
             custom_features = self.extract_features(processed_text, html_content)
             
+            # Add subject and sender to custom_features
+            custom_features['subject'] = subject
+            custom_features['sender'] = sender
+            
             # Check if this is a legitimate service email
-            is_service_email = self._verify_service_email(email_content, custom_features.get('sender', ''))
+            is_service_email = self._verify_service_email(body, sender)
             
             # Convert custom features to array
             custom_features_array = np.array([
@@ -746,6 +757,7 @@ class EmailPhishingDetector:
 
         except Exception as e:
             logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
+            # Return a default structure in case of error
             error_response = {
                 'is_phishing': False,
                 'confidence': 0.0,
@@ -774,7 +786,7 @@ class EmailPhishingDetector:
                         'has_suspicious_urls': False,
                         'has_sensitive_requests': False
                     },
-                    'error': str(e)
+                    'error': 'An error occurred during analysis'
                 }
             
             return error_response
@@ -1095,6 +1107,7 @@ class EmailPhishingDetector:
         }
         
         return sum(service_indicators.values()) >= 3
+    
 
     def retrain_model(self, dataset_path):
         """Retrain the model with current XGBoost version"""
