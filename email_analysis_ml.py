@@ -563,14 +563,33 @@ class EmailPhishingDetector:
             print("Feature importance analysis is not available for this model type.")
             return []  # Return an empty list if feature importance is not available
 
-    def analyze_email(self, email_content, html_content=''):
-        """Analyze a single email"""
+    def analyze_email(self, email_content, html_content='', is_browser_extension=False):
+        """
+        Analyze a single email
+        Args:
+            email_content: The email content to analyze
+            html_content: HTML content of the email (optional)
+            is_browser_extension: Boolean indicating if the request is from browser extension
+        """
         if not self.trained:
             logger.error("Model has not been trained yet")
             raise ValueError("Model has not been trained yet")
         
         try:
             logger.info("Starting email analysis")
+            
+            # Handle browser extension input
+            if is_browser_extension:
+                try:
+                    # Extract HTML content if it's embedded in email_content
+                    if '<html' in email_content:
+                        soup = BeautifulSoup(email_content, 'html.parser')
+                        html_content = str(soup)
+                        email_content = soup.get_text()
+                        logger.debug("Successfully extracted HTML content from browser extension")
+                except Exception as e:
+                    logger.error(f"Error processing browser extension input: {str(e)}")
+            
             processed_text = self._preprocess_text(email_content)
             
             # Extract features
@@ -657,9 +676,9 @@ class EmailPhishingDetector:
                     
                     # Structure features
                     'has_greeting': custom_features['has_greeting'],
-                    'has_personal_greeting': custom_features['has_personal_greeting'],
+                    'has_personal_greeting': custom_features.get('has_personal_greeting', 0),
                     'has_signature': custom_features['has_signature'],
-                    'has_company_signature': custom_features['has_company_signature'],
+                    'has_company_signature': custom_features.get('has_company_signature', 0),
                     
                     # URL features
                     'url_count': custom_features['url_count'],
@@ -699,8 +718,23 @@ class EmailPhishingDetector:
                 'date': custom_features.get('date', ''),
                 'body': email_content,
                 'html_content': html_content,
-                'embedded_links': embedded_links
+                'embedded_links': embedded_links,
+                'source': 'browser_extension' if is_browser_extension else 'file_upload'
             }
+
+            # Add browser extension specific response format
+            if is_browser_extension:
+                result['browser_extension'] = {
+                    'summary': 'Likely Safe' if not bool(prediction) else 'Potential Phishing',
+                    'confidence_percentage': f"{float(probability[1]) * 100:.1f}%",
+                    'quick_indicators': {
+                        'has_greeting': bool(custom_features['has_greeting']),
+                        'has_signature': bool(custom_features['has_signature']),
+                        'has_suspicious_urls': bool(custom_features['suspicious_url_count'] > 0),
+                        'has_sensitive_requests': bool(custom_features.get('contains_personal', 0) or 
+                                                    custom_features.get('contains_financial', 0))
+                    }
+                }
 
             # Log the structure of the result for debugging
             logger.debug(f"Analysis result structure: {result.keys()}")
@@ -709,6 +743,41 @@ class EmailPhishingDetector:
             logger.debug(f"Signature detection: {result['features']['has_signature']}")
 
             return result
+
+        except Exception as e:
+            logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
+            error_response = {
+                'is_phishing': False,
+                'confidence': 0.0,
+                'features': {},
+                'explanation': {
+                    'confidence_level': 'Low',
+                    'suspicious_indicators': [],
+                    'safe_indicators': [],
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
+                },
+                'subject': '',
+                'sender': '',
+                'date': '',
+                'body': '',
+                'html_content': '',
+                'embedded_links': []
+            }
+            
+            if is_browser_extension:
+                error_response['browser_extension'] = {
+                    'summary': 'Analysis Error',
+                    'confidence_percentage': '0%',
+                    'quick_indicators': {
+                        'has_greeting': False,
+                        'has_signature': False,
+                        'has_suspicious_urls': False,
+                        'has_sensitive_requests': False
+                    },
+                    'error': str(e)
+                }
+            
+            return error_response
 
         except Exception as e:
             logger.error(f"Error analyzing email: {str(e)}", exc_info=True)
