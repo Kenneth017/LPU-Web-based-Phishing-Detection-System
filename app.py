@@ -1976,10 +1976,10 @@ def is_suspicious_url(url):
 @app.route('/email_analysis', methods=['GET', 'POST'])
 @login_required
 async def email_analysis():
+    if request.method == 'GET':
+        return await render_template('email_analysis.html')
+    
     try:
-        if request.method == 'GET':
-            return await render_template('email_analysis.html')
-        
         # POST request handling
         files = await request.files
         if 'email_file' not in files:
@@ -1993,16 +1993,18 @@ async def email_analysis():
         if file_ext not in ['.msg', '.eml']:
             return jsonify({'error': 'Invalid file type. Please upload a .msg or .eml file.'}), 400
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
-            await file.save(temp_file.name)
-            temp_file_path = temp_file.name
-
+        temp_file_path = None
         try:
-            # Parse the email file
+            # Save uploaded file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+                await file.save(temp_file.name)
+                temp_file_path = temp_file.name
+
+            # Parse and analyze email
             email_data = parse_email_file(temp_file_path, file_ext)
             result = detector.analyze_email(email_data['body'], email_data.get('html_content', ''))
             
-            # Create a dictionary with default values
+            # Create default features dictionary
             default_features = {
                 'has_greeting': False,
                 'has_signature': False,
@@ -2020,20 +2022,20 @@ async def email_analysis():
                 'is_service_email': False
             }
 
-            # Update default_features with values from result['features'] if they exist
+            # Update features from result
             if 'features' in result:
                 for key in default_features.keys():
                     if key in result['features']:
                         default_features[key] = result['features'][key]
 
-            # Add additional information to the result
+            # Add metadata to result
             result['subject'] = email_data['subject']
             result['sender'] = email_data['sender']
             result['date'] = get_singapore_time()
             result['html_content'] = email_data.get('html_content', '')
             result['attachments'] = email_data.get('attachments', [])
             
-            # Inside your email_analysis route, when storing session data:
+            # Store analysis in session
             session['email_analysis'] = {
                 'is_phishing': result['is_phishing'],
                 'confidence': float(result['confidence']),
@@ -2043,10 +2045,10 @@ async def email_analysis():
                     'sender': result['sender'],
                     'date': result['date']
                 },
-                'explanation': {  # Add this block
+                'explanation': {
                     'confidence_level': 'High' if result['confidence'] > 0.8 else 'Medium' if result['confidence'] > 0.5 else 'Low',
-                    'suspicious_indicators': [],  # Will be populated below
-                    'safe_indicators': [],  # Will be populated below
+                    'suspicious_indicators': [],
+                    'safe_indicators': [],
                     'risk_assessment': {
                         'url_risk': 'High' if default_features['suspicious_url_count'] > 0 else 'Low',
                         'content_risk': 'High' if result['is_phishing'] else 'Low',
@@ -2055,7 +2057,7 @@ async def email_analysis():
                 }
             }
 
-            # Generate indicators based on features
+            # Generate indicators
             suspicious_indicators = []
             safe_indicators = []
             
@@ -2120,20 +2122,21 @@ async def email_analysis():
                 'structure_risk': 'High' if not default_features['has_greeting'] or not default_features['has_signature'] else 'Low'
             }
 
-            # Store larger data in a temporary file
+            # Store larger data in temporary file
             try:
                 analysis_id = str(uuid.uuid4())
                 temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
                 
                 logger.debug(f"Storing email data in temporary file: {temp_data_path}")
                 
+                temp_data = {
+                    'body': email_data['body'],
+                    'html_content': email_data.get('html_content', ''),
+                    'embedded_links': result.get('embedded_links', []),
+                    'attachments': email_data.get('attachments', [])
+                }
+                
                 with open(temp_data_path, 'w') as f:
-                    temp_data = {
-                        'body': email_data['body'],
-                        'html_content': email_data.get('html_content', ''),
-                        'embedded_links': result.get('embedded_links', []),
-                        'attachments': email_data.get('attachments', [])
-                    }
                     json.dump(temp_data, f)
                 
                 session['email_analysis_id'] = analysis_id
@@ -2141,9 +2144,7 @@ async def email_analysis():
             
             except Exception as e:
                 logger.error(f"Error storing email data: {str(e)}")
-                # Provide a fallback mechanism
                 session['email_analysis_id'] = None
-                # Store minimal data in session if temporary storage fails
                 session['email_analysis']['minimal_data'] = {
                     'body': email_data['body'][:1000] + '...' if len(email_data['body']) > 1000 else email_data['body']
                 }
@@ -2155,14 +2156,16 @@ async def email_analysis():
             return jsonify({'error': str(e)}), 500
 
         finally:
-            try:
-                os.unlink(temp_file_path)
-            except:
-                pass
+            # Clean up temporary file
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    logger.error(f"Error deleting temporary file: {str(e)}")
 
     except Exception as e:
-        logger.error(f"Error in email analysis: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error in request handling: {str(e)}", exc_info=True)
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 @app.route('/email_analysis_result')
 @login_required
