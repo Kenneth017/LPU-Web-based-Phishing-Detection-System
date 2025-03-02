@@ -150,6 +150,10 @@ class EmailPhishingDetector:
 
     def extract_features(self, text, html_content=''):
         """Enhanced feature extraction with more sophisticated analysis"""
+        # Add debug logging for input
+        logger.debug("Original text input:")
+        logger.debug(text)
+        
         features = {}
         
         # Initialize all required features with default values
@@ -183,59 +187,57 @@ class EmailPhishingDetector:
         # Update features with default values
         features.update(default_features)
         
-        # First, split the text into lines and clean them
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        if not lines:
-            logger.warning("Empty email content")
-            return features
-        
         # Basic text features
         features['text_length'] = len(text)
         words = text.split()
         features['word_count'] = len(words)
         features['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
         
-        # Get first and last few lines for analysis
-        first_five_lines = '\n'.join(lines[:5]).lower()
-        last_five_lines = '\n'.join(lines[-5:]).lower()
+        # Clean and normalize text
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if not lines:
+            logger.warning("Empty email content")
+            return features
+        
+        # Get first and last parts for analysis
+        first_part = '\n'.join(lines[:5])
+        last_part = '\n'.join(lines[-5:])
+        
+        logger.debug("First part of email:")
+        logger.debug(first_part)
+        logger.debug("Last part of email:")
+        logger.debug(last_part)
         
         # Enhanced greeting patterns
         greeting_patterns = [
-            r'(?i)^\s*(?:dear|hi|hello|hey|good\s+(?:morning|afternoon|evening))\s+\w+',
-            r'(?i)^\s*(?:dear|hi|hello|hey|greetings)\s+(?:sir|madam|all|team|everyone)',
-            r'(?i)^\s*to\s+whom\s+it\s+may\s+concern',
+            r'(?i)^\s*dear\s+\w+',
+            r'(?i)^\s*hi\s+\w+',
+            r'(?i)^\s*hello\s+\w+',
+            r'(?i)^\s*good\s+(?:morning|afternoon|evening)\s+\w+',
+            r'(?i)^\s*greetings',
         ]
         
         # Enhanced signature patterns
         signature_patterns = [
-            r'(?i)(?:regards|sincerely|yours|best|cheers|thank(?:s|\s+you)?)[,\s]*(?:\n|$)',
-            r'(?i)(?:^|\n)\s*[-_]{2,}\s*\n',  # Signature line
-            r'(?i)(?:^|\n)\s*[a-z\s.]+\n.*?(?:@|phone|tel|www)',  # Name with contact info
-            r'(?i)(?:^|\n)\s*(?:office|cell|tel|fax|email):\s*[0-9@a-z.]+',
-            r'(?i)(?:^|\n)\s*www\.[a-z0-9-]+\.[a-z]{2,}',
-            r'(?i)(?:^|\n)\s*(?:confidential|disclaimer|legal notice)',
+            r'(?i)(?:regards|sincerely|yours|best|cheers)[,\s]*$',
+            r'(?i)(?:regards|sincerely|yours|best|cheers)[,\s]*\n+\s*[\w\s]+$',
+            r'(?i)^[\s\n]*best\s+regards.*$',
         ]
         
         # Check for greeting
-        for pattern in greeting_patterns:
-            match = re.search(pattern, first_five_lines, re.MULTILINE)
-            if match:
-                features['has_greeting'] = 1
-                logger.debug(f"Greeting detected: {match.group()}")
-                break
+        has_greeting = any(re.search(pattern, first_part, re.MULTILINE) for pattern in greeting_patterns)
+        features['has_greeting'] = int(has_greeting)
+        logger.debug(f"Greeting detected: {has_greeting}")
         
         # Check for signature
-        for pattern in signature_patterns:
-            match = re.search(pattern, last_five_lines, re.MULTILINE)
-            if match:
-                features['has_signature'] = 1
-                logger.debug(f"Signature detected: {match.group()}")
-                break
+        has_signature = any(re.search(pattern, last_part, re.MULTILINE) for pattern in signature_patterns)
+        features['has_signature'] = int(has_signature)
+        logger.debug(f"Signature detected: {has_signature}")
         
         # Check for personal greeting
         if features['has_greeting']:
             personal_greeting_pattern = r'(?i)^\s*(?:dear|hi|hello|hey|good\s+(?:morning|afternoon|evening))\s+[a-z]+\b'
-            if re.search(personal_greeting_pattern, first_five_lines, re.MULTILINE):
+            if re.search(personal_greeting_pattern, first_part, re.MULTILINE):
                 features['has_personal_greeting'] = 1
         
         # Check for company signature
@@ -246,7 +248,7 @@ class EmailPhishingDetector:
                 r'(?i)(?:www\.[a-z0-9-]+\.[a-z]{2,})',
             ]
             for pattern in company_patterns:
-                if re.search(pattern, last_five_lines, re.MULTILINE):
+                if re.search(pattern, last_part, re.MULTILINE):
                     features['has_company_signature'] = 1
                     break
         
@@ -281,13 +283,9 @@ class EmailPhishingDetector:
         features['sensitive_info_requested'] = int(any(word in text.lower() for category in ['financial', 'personal'] 
                                                     for word in self.suspicious_words[category]))
         
-        # Debug logging
-        logger.debug(f"Email Analysis Results:")
-        logger.debug(f"Text length: {features['text_length']}")
-        logger.debug(f"Has greeting: {bool(features['has_greeting'])} - Personal: {bool(features['has_personal_greeting'])}")
-        logger.debug(f"Has signature: {bool(features['has_signature'])} - Company: {bool(features['has_company_signature'])}")
-        logger.debug(f"First few lines:\n{first_five_lines}")
-        logger.debug(f"Last few lines:\n{last_five_lines}")
+        # Debug logging for final features
+        logger.debug("Extracted features:")
+        logger.debug(features)
         
         return features
     
@@ -627,13 +625,55 @@ class EmailPhishingDetector:
             # Generate explanation
             explanation = self._generate_explanation(custom_features, probability, embedded_links, is_service_email)
 
+            # Create the result dictionary with all features
             result = {
                 'is_phishing': bool(prediction),
                 'confidence': float(probability[1]),
                 'features': {
-                    # ... (existing feature details)
+                    # Basic features
+                    'text_length': custom_features['text_length'],
+                    'word_count': custom_features['word_count'],
+                    'avg_word_length': custom_features['avg_word_length'],
+                    
+                    # Structure features
+                    'has_greeting': custom_features['has_greeting'],
+                    'has_personal_greeting': custom_features['has_personal_greeting'],
+                    'has_signature': custom_features['has_signature'],
+                    'has_company_signature': custom_features['has_company_signature'],
+                    
+                    # URL features
+                    'url_count': custom_features['url_count'],
+                    'suspicious_url_count': custom_features['suspicious_url_count'],
+                    'url_to_text_ratio': custom_features['url_to_text_ratio'],
+                    
+                    # Content features
+                    'contains_urgent': custom_features['contains_urgent'],
+                    'contains_financial': custom_features['contains_financial'],
+                    'contains_security': custom_features['contains_security'],
+                    'contains_personal': custom_features['contains_personal'],
+                    'contains_threat': custom_features['contains_threat'],
+                    'contains_action': custom_features['contains_action'],
+                    
+                    # Style features
+                    'uppercase_ratio': custom_features['uppercase_ratio'],
+                    'digit_ratio': custom_features['digit_ratio'],
+                    'punctuation_ratio': custom_features['punctuation_ratio'],
+                    
+                    # HTML features
+                    'contains_html': custom_features['contains_html'],
+                    'html_tag_count': custom_features['html_tag_count'],
+                    'mismatched_links': custom_features['mismatched_links'],
+                    
+                    # Additional features
+                    'has_multipart': custom_features.get('has_multipart', 0),
+                    'html_to_text_ratio': custom_features.get('html_to_text_ratio', 0),
+                    'has_base64': custom_features.get('has_base64', 0),
+                    'has_script': custom_features.get('has_script', 0),
+                    'has_iframe': custom_features.get('has_iframe', 0),
+                    'has_form': custom_features.get('has_form', 0),
+                    'is_service_email': int(is_service_email)
                 },
-                'explanation': explanation,  # Ensure this is always included
+                'explanation': explanation,
                 'subject': custom_features.get('subject', ''),
                 'sender': custom_features.get('sender', ''),
                 'date': custom_features.get('date', ''),
@@ -644,7 +684,9 @@ class EmailPhishingDetector:
 
             # Log the structure of the result for debugging
             logger.debug(f"Analysis result structure: {result.keys()}")
-            logger.debug(f"Explanation structure: {result['explanation'].keys()}")
+            logger.debug(f"Features included: {result['features'].keys()}")
+            logger.debug(f"Greeting detection: {result['features']['has_greeting']}")
+            logger.debug(f"Signature detection: {result['features']['has_signature']}")
 
             return result
 
@@ -1066,10 +1108,12 @@ if __name__ == "__main__":
         
         # Test the model
         test_email = """
-        Dear User,
+        Dear John,
         Your account security needs immediate attention. Please click the link below to verify your information:
         http://suspicious-bank.com/verify
         Urgent action required within 24 hours.
+        
+        Regards,
         """
         
         result = detector.analyze_email(test_email)
