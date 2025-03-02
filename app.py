@@ -2121,18 +2121,32 @@ async def email_analysis():
             }
 
             # Store larger data in a temporary file
-            analysis_id = str(uuid.uuid4())
-            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+            try:
+                analysis_id = str(uuid.uuid4())
+                temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+                
+                logger.debug(f"Storing email data in temporary file: {temp_data_path}")
+                
+                with open(temp_data_path, 'w') as f:
+                    temp_data = {
+                        'body': email_data['body'],
+                        'html_content': email_data.get('html_content', ''),
+                        'embedded_links': result.get('embedded_links', []),
+                        'attachments': email_data.get('attachments', [])
+                    }
+                    json.dump(temp_data, f)
+                
+                session['email_analysis_id'] = analysis_id
+                logger.debug(f"Successfully stored email data with analysis_id: {analysis_id}")
             
-            with open(temp_data_path, 'w') as f:
-                json.dump({
-                    'body': email_data['body'],
-                    'html_content': email_data.get('html_content', ''),
-                    'embedded_links': result.get('embedded_links', []),
-                    'attachments': email_data.get('attachments', [])
-                }, f)
-            
-            session['email_analysis_id'] = analysis_id
+            except Exception as e:
+                logger.error(f"Error storing email data: {str(e)}")
+                # Provide a fallback mechanism
+                session['email_analysis_id'] = None
+                # Store minimal data in session if temporary storage fails
+                session['email_analysis']['minimal_data'] = {
+                    'body': email_data['body'][:1000] + '...' if len(email_data['body']) > 1000 else email_data['body']
+                }
 
             return jsonify({'redirect': url_for('email_analysis_result')})
 
