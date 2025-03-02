@@ -284,7 +284,32 @@
         <a href="{{ url_for('email_analysis') }}" class="btn btn-primary">Analyze Another Email</a>
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
     </div>
+
+    <div class="debug-info" style="display: none;">
+        <h3>Debug Information</h3>
+        <h4>Email Structure Features</h4>
+        <pre>
+        Has Greeting: {{ result.features.has_greeting }}
+        Has Personal Greeting: {{ result.features.has_personal_greeting }}
+        Has Signature: {{ result.features.has_signature }}
+        Has Company Signature: {{ result.features.has_company_signature }}
+        </pre>
+        
+        <h4>Content Features</h4>
+        <pre>
+        Text Length: {{ result.features.text_length }}
+        Word Count: {{ result.features.word_count }}
+        URL Count: {{ result.features.url_count }}
+        Suspicious URLs: {{ result.features.suspicious_url_count }}
+        Contains Urgent Language: {{ result.features.contains_urgent }}
+        Contains Sensitive Info: {{ result.features.contains_personal or result.features.contains_financial }}
+        </pre>
+        
+        <h4>Full Result</h4>
+        <pre>{{ result | tojson(indent=2) }}</pre>
+    </div>
 </div>
+<button id="toggle-debug">Toggle Debug Info</button>
 {% endblock %}
 
 {% block scripts %}
@@ -308,6 +333,23 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(`${tabName}-view`).classList.add('active');
         });
     });
+});
+document.getElementById('toggle-debug').addEventListener('click', function() {
+    var debugInfo = document.querySelector('.debug-info');
+    var isHidden = debugInfo.style.display === 'none';
+    debugInfo.style.display = isHidden ? 'block' : 'none';
+    
+    // Save state to localStorage
+    localStorage.setItem('debugVisible', isHidden);
+});
+
+// Restore debug visibility state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    var debugInfo = document.querySelector('.debug-info');
+    var wasVisible = localStorage.getItem('debugVisible') === 'true';
+    if (wasVisible) {
+        debugInfo.style.display = 'block';
+    }
 });
 </script>
 {% endblock %}
