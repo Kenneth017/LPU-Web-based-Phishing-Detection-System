@@ -2360,6 +2360,112 @@ async def logout():
     
     return redirect(url_for('login'))
 
+@app.route('/perform_system_cleanup/<secret_key>', methods=['GET'])
+async def trigger_system_cleanup(secret_key):
+    if secret_key != os.getenv('CLEANUP_SECRET_KEY', 'your-secret-key-here'):
+        return "Unauthorized", 401
+
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+
+        # Backup admin credentials
+        c.execute("""
+            SELECT username, email, password, is_admin 
+            FROM users 
+            WHERE is_admin = 1 AND username = ?
+        """, (os.getenv('ADMIN_DEFAULT_USERNAME'),))
+        admin_data = c.fetchone()
+
+        if not admin_data:
+            return "Admin user not found!", 500
+
+        # Drop all existing tables
+        tables_to_drop = ['analysis_history', 'user_feedback', 'user_activity_log', 'users']
+        for table in tables_to_drop:
+            c.execute(f"DROP TABLE IF EXISTS {table}")
+
+        # Recreate users table
+        c.execute('''
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
+            password TEXT NOT NULL,
+            is_admin BOOLEAN NOT NULL DEFAULT 0,
+            email_verified BOOLEAN DEFAULT 0,
+            session_token TEXT,
+            session_expiry TEXT
+        )
+        ''')
+
+        # Restore admin user
+        c.execute("""
+            INSERT INTO users (username, email, password, is_admin, email_verified)
+            VALUES (?, ?, ?, 1, 1)
+        """, (admin_data['username'], admin_data['email'], admin_data['password']))
+
+        # Recreate analysis_history table
+        c.execute('''
+        CREATE TABLE analysis_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            input_string TEXT NOT NULL,
+            input_type TEXT NOT NULL,
+            is_malicious INTEGER NOT NULL,
+            main_verdict TEXT NOT NULL,
+            community_score TEXT,
+            metadata TEXT,
+            vendor_analysis TEXT,
+            user_id INTEGER,
+            analysis_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            confidence_score REAL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        ''')
+
+        # Recreate user_activity_log table
+        c.execute('''
+        CREATE TABLE user_activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            action TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+
+        # Recreate user_feedback table
+        c.execute('''
+        CREATE TABLE user_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            feedback_type TEXT,
+            input_string TEXT,
+            message TEXT,
+            submission_date DATETIME,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        ''')
+
+        # Create indexes
+        c.execute('CREATE INDEX IF NOT EXISTS idx_analysis_date ON analysis_history(analysis_date)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
+
+        # Optimize database
+        c.execute("VACUUM")
+        
+        conn.commit()
+        conn.close()
+
+        return "System cleanup completed successfully! Please redeploy the application.", 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return f"Error during cleanup: {str(e)}", 500
+
+
 import secrets
 import string
 
