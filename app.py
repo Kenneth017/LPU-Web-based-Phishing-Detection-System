@@ -2362,7 +2362,7 @@ async def logout():
 
 @app.route('/perform_system_cleanup/<secret_key>', methods=['GET'])
 async def trigger_system_cleanup(secret_key):
-    if secret_key != os.getenv('CLEANUP_SECRET_KEY', 'your-secret-key-here'):
+    if secret_key != os.getenv('CLEANUP_SECRET_KEY', 'cleanup_2025_secure'):
         return "Unauthorized", 401
 
     try:
@@ -2451,13 +2451,31 @@ async def trigger_system_cleanup(secret_key):
         c.execute('CREATE INDEX IF NOT EXISTS idx_main_verdict ON analysis_history(main_verdict)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_input_string ON analysis_history(input_string)')
 
-        # Optimize database
-        c.execute("VACUUM")
-        
+        # Commit changes
         conn.commit()
         conn.close()
 
-        return "System cleanup completed successfully! Please redeploy the application.", 200
+        # Create a new connection for VACUUM
+        conn = get_db_connection()
+        conn.execute("VACUUM")
+        conn.close()
+
+        return """
+        <html>
+            <body>
+                <h2>System cleanup completed successfully!</h2>
+                <p>Please follow these steps:</p>
+                <ol>
+                    <li>Go to Render dashboard</li>
+                    <li>Click "Manual Deploy"</li>
+                    <li>Choose "Clear build cache & deploy"</li>
+                    <li>Wait for deployment to complete</li>
+                    <li>Clear your browser cache</li>
+                    <li>Log out and log back in</li>
+                </ol>
+            </body>
+        </html>
+        """, 200
 
     except Exception as e:
         if conn:
