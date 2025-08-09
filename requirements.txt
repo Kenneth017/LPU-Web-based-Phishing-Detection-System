@@ -29,3 +29,4 @@ flask-cors
 eventlet
 websockets
 pytz==2023.3
+flask-cors==3.0.10
