@@ -68,10 +68,20 @@ def get_singapore_time():
 # Load environment variables
 load_dotenv()
 
-# Initialize Quart app
 app = Quart(__name__, static_folder='static', static_url_path='/static')
-CORS(app)
 app.secret_key = os.getenv('SECRET_KEY')
+
+# CORS setup
+@app.after_request
+async def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+@app.route('/options', methods=['OPTIONS'])
+async def handle_options():
+    return '', 204
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -3038,5 +3048,6 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
