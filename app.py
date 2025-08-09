@@ -2929,12 +2929,90 @@ async def admin_initiate_reset(user_id):
 @app.route('/api/analyze_email', methods=['POST'])
 async def api_analyze_email():
     try:
-        data = await request.json
-        result = detector.analyze_email(data['email_content'], is_browser_extension=True)
+        data = await request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No data provided',
+                'is_phishing': False,
+                'confidence': 0.0,
+                'explanation': {
+                    'suspicious_indicators': ['No email content to analyze'],
+                    'safe_indicators': [],
+                    'risk_assessment': {
+                        'url_risk': 'Low',
+                        'content_risk': 'Low',
+                        'structure_risk': 'Low'
+                    }
+                }
+            }), 400
+
+        # Log received data
+        logger.info(f"Received email data: {json.dumps(data, indent=2)}")
+
+        # Extract email content
+        email_content = {
+            'subject': data.get('subject', ''),
+            'sender': data.get('sender', ''),
+            'body': data.get('body', ''),
+            'html': data.get('html', ''),
+            'links': data.get('links', []),
+            'date': data.get('date', '')
+        }
+
+        if not email_content['body'] and not email_content['html']:
+            return jsonify({
+                'error': 'Empty email content',
+                'is_phishing': False,
+                'confidence': 0.0,
+                'explanation': {
+                    'suspicious_indicators': ['No email content to analyze'],
+                    'safe_indicators': [],
+                    'risk_assessment': {
+                        'url_risk': 'Low',
+                        'content_risk': 'Low',
+                        'structure_risk': 'Low'
+                    }
+                }
+            }), 400
+
+        # Use your existing EmailPhishingDetector
+        result = detector.analyze_email(email_content)
+        
+        # Ensure result has all required fields
+        if not isinstance(result, dict):
+            result = {
+                'is_phishing': False,
+                'confidence': 0.0,
+                'explanation': {
+                    'suspicious_indicators': ['Error analyzing email'],
+                    'safe_indicators': [],
+                    'risk_assessment': {
+                        'url_risk': 'Low',
+                        'content_risk': 'Low',
+                        'structure_risk': 'Low'
+                    }
+                }
+            }
+
         return jsonify(result)
+
     except Exception as e:
         logger.error(f"Error in api_analyze_email: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'is_phishing': False,
+            'confidence': 0.0,
+            'explanation': {
+                'suspicious_indicators': [f'Error analyzing email: {str(e)}'],
+                'safe_indicators': [],
+                'risk_assessment': {
+                    'url_risk': 'Low',
+                    'content_risk': 'Low',
+                    'structure_risk': 'Low'
+                }
+            }
+        }), 500
 
 @app.errorhandler(404)
 async def not_found(e):
@@ -2959,3 +3037,4 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
