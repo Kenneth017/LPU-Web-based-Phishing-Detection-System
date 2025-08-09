@@ -792,43 +792,43 @@ class EmailPhishingDetector:
             return error_response
 
     def _generate_error_response(self, is_browser_extension=False):
-    """Generate an error response when email content is empty or invalid"""
-    error_response = {
-        'is_phishing': False,
-        'confidence': 0.0,
-        'features': {},
-        'explanation': {
-            'confidence_level': 'Low',
-            'suspicious_indicators': ['Empty or invalid email content'],
-            'safe_indicators': [],
-            'risk_assessment': {
-                'url_risk': 'Low',
-                'content_risk': 'Low',
-                'structure_risk': 'Low'
-            }
-        },
-        'subject': '',
-        'sender': '',
-        'date': '',
-        'body': '',
-        'html_content': '',
-        'embedded_links': []
-    }
-    
-    if is_browser_extension:
-        error_response['browser_extension'] = {
-            'summary': 'Analysis Error',
-            'confidence_percentage': '0%',
-            'quick_indicators': {
-                'has_greeting': False,
-                'has_signature': False,
-                'has_suspicious_urls': False,
-                'has_sensitive_requests': False
+        """Generate an error response when email content is empty or invalid"""
+        error_response = {
+            'is_phishing': False,
+            'confidence': 0.0,
+            'features': {},
+            'explanation': {
+                'confidence_level': 'Low',
+                'suspicious_indicators': ['Empty or invalid email content'],
+                'safe_indicators': [],
+                'risk_assessment': {
+                    'url_risk': 'Low',
+                    'content_risk': 'Low',
+                    'structure_risk': 'Low'
+                }
             },
-            'error': 'Empty or invalid email content'
+            'subject': '',
+            'sender': '',
+            'date': '',
+            'body': '',
+            'html_content': '',
+            'embedded_links': []
         }
-    
-    return error_response
+        
+        if is_browser_extension:
+            error_response['browser_extension'] = {
+                'summary': 'Analysis Error',
+                'confidence_percentage': '0%',
+                'quick_indicators': {
+                    'has_greeting': False,
+                    'has_signature': False,
+                    'has_suspicious_urls': False,
+                    'has_sensitive_requests': False
+                },
+                'error': 'Empty or invalid email content'
+            }
+        
+        return error_response
         
     def analyze_headers(self, headers):
         suspicious_headers = []
