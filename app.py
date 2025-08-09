@@ -20,6 +20,7 @@ from quart import websocket
 from urllib.parse import urlparse
 from utils import setup_logger
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_cors import CORS
 import asyncio
 import asyncio
 import csv
@@ -37,7 +38,6 @@ import stat
 import tempfile
 import time
 import uuid
-
 
 # Set up timezone
 singapore_tz = pytz.timezone('Asia/Singapore')
@@ -70,6 +70,7 @@ load_dotenv()
 
 # Initialize Quart app
 app = Quart(__name__, static_folder='static', static_url_path='/static')
+CORS(app)
 app.secret_key = os.getenv('SECRET_KEY')
 
 # Set up logger
@@ -3037,4 +3038,5 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
