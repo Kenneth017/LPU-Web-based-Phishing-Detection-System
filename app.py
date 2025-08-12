@@ -2178,6 +2178,15 @@ async def email_analysis():
         logger.error(f"Error in request handling: {str(e)}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
+@app.route('/api/upload_email', methods=['POST'])
+def upload_email():
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"error": "No file provided"}), 400
+    # process the .eml same as manual upload
+    result = process_eml_file(file)
+    return jsonify(result)
+
 @app.route('/email_analysis_result')
 @login_required
 async def email_analysis_result():
@@ -3048,6 +3057,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
