@@ -1966,32 +1966,41 @@ def parse_email_file(file_path, file_type):
         logger.error(f"Error parsing email file: {str(e)}")
         raise
         
-def _build_email_result_from_parts(
-    *,
-    subject: str = "",
-    sender: str = "",
-    body_text: str = "",
-    html_text: str = "",
-    links: list | None = None,
-    attachments: list | None = None,
-    model_output: dict | None = None
-) -> dict:
+
+def _is_suspicious_url(url: str) -> bool:
+    try:
+        parsed_url = urlparse(url)
+        suspicious_indicators = [
+            parsed_url.netloc != parsed_url.path.strip('/'),
+            len(parsed_url.netloc.split('.')) > 3,
+            any(ch in parsed_url.netloc for ch in ['@', '-', '_']),
+            bool(re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', parsed_url.netloc)),
+            len(url) > 100,
+            bool(re.search(r'(password|login|account|bank|verify|security)', (parsed_url.path or '').lower())),
+            parsed_url.scheme == 'http',
+            bool(re.search(r'[A-Z]{4,}', parsed_url.netloc)),
+        ]
+        return sum(suspicious_indicators) >= 2
+    except Exception:
+        return True
+
+def _build_email_result_from_parts(*, subject='', sender='', body_text='', html_text='',
+                                   links=None, attachments=None, model_output=None):
     links = links or []
     attachments = attachments or []
     model_output = model_output or {}
 
-    # Default feature skeleton (mirrors your manual-upload route)
     default_features = {
         'has_greeting': False,
         'has_signature': False,
-        'url_count': 0,
-        'suspicious_url_count': 0,
+        'url_count': len(links),
+        'suspicious_url_count': sum(1 for l in links if l.get('suspicious')),
         'contains_urgent': False,
         'urgent_count': 0,
         'contains_personal': False,
         'contains_financial': False,
-        'text_length': 0,
-        'word_count': 0,
+        'text_length': len(body_text or ''),
+        'word_count': len((body_text or '').split()),
         'uppercase_ratio': 0.0,
         'digit_ratio': 0.0,
         'punctuation_ratio': 0.0,
@@ -2001,74 +2010,60 @@ def _build_email_result_from_parts(
         'has_personal_greeting': False,
     }
 
-    # Fold in model-provided features if any
     if isinstance(model_output, dict) and 'features' in model_output:
         for k in default_features.keys():
             if k in model_output['features']:
                 default_features[k] = model_output['features'][k]
 
-    # Derive URL counts from the provided links (HTML + text)
-    default_features['url_count'] = len(links)
-    default_features['suspicious_url_count'] = sum(1 for l in links if l.get('suspicious'))
-
-    # Confidence
     conf = float(model_output.get('confidence', 0.0) or 0.0)
-    conf_level = 'High' if conf > 0.8 else 'Medium' if conf > 0.5 else 'Low'
+    conf_level = 'High' if conf > 0.8 else ('Medium' if conf > 0.5 else 'Low')
 
-    # Indicators (same style as manual flow)
     suspicious_indicators = []
     safe_indicators = []
 
-    if default_features['has_greeting']:
-        safe_indicators.append("Contains proper greeting")
+    if default_features.get('has_greeting'):
+        safe_indicators.append('Contains proper greeting')
     else:
-        suspicious_indicators.append("Missing email greeting")
+        suspicious_indicators.append('Missing email greeting')
 
-    if default_features['has_signature']:
-        safe_indicators.append("Contains proper signature")
+    if default_features.get('has_signature'):
+        safe_indicators.append('Contains proper signature')
     else:
-        suspicious_indicators.append("Missing email signature")
+        suspicious_indicators.append('Missing email signature')
 
     if default_features['url_count'] > 0:
         if default_features['suspicious_url_count'] > 0:
             suspicious_indicators.append(f"Contains {default_features['suspicious_url_count']} suspicious URL(s)")
         else:
-            safe_indicators.append("Contains links but none look suspicious")
+            safe_indicators.append('Contains links but none look suspicious')
     else:
-        safe_indicators.append("No links found in the email")
+        safe_indicators.append('No links found in the email')
 
-    if default_features['contains_urgent'] or default_features['urgent_count'] > 0:
-        suspicious_indicators.append("Contains urgent or time-sensitive language")
+    if default_features.get('contains_urgent') or default_features.get('urgent_count', 0) > 0:
+        suspicious_indicators.append('Contains urgent or time-sensitive language')
     else:
-        safe_indicators.append("No urgent or time-sensitive language detected")
+        safe_indicators.append('No urgent or time-sensitive language detected')
 
-    if default_features['contains_personal'] or default_features['contains_financial']:
-        suspicious_indicators.append("Possible request for personal/financial information")
+    if default_features.get('contains_personal') or default_features.get('contains_financial'):
+        suspicious_indicators.append('Possible request for personal/financial information')
 
-    if attachments:
-        safe_indicators.append("Attachments found")  # you can flip to a caution message if you prefer
-
-    # Risk assessment buckets like in the template
     risk_assessment = {
         'url_risk': 'High' if default_features['suspicious_url_count'] > 0 else 'Low',
         'content_risk': 'High' if bool(model_output.get('is_phishing')) else 'Low',
-        'structure_risk': 'High' if (not default_features['has_greeting'] or not default_features['has_signature']) else 'Low',
+        'structure_risk': 'High' if (not default_features.get('has_greeting') or not default_features.get('has_signature')) else 'Low',
     }
 
     result = {
         'is_phishing': bool(model_output.get('is_phishing', False)),
         'confidence': conf,
         'features': default_features,
-
-        # Metadata and content (what your template expects)
-        'subject': subject or "",
-        'sender': sender or "",
+        'subject': subject or '',
+        'sender': sender or '',
         'date': get_singapore_time(),
-        'body': body_text or "",
-        'html_content': html_text or "",
+        'body': body_text or '',
+        'html_content': html_text or '',
         'embedded_links': links,
         'attachments': attachments,
-
         'explanation': {
             'confidence_level': conf_level,
             'suspicious_indicators': suspicious_indicators,
@@ -2076,11 +2071,8 @@ def _build_email_result_from_parts(
             'risk_assessment': risk_assessment
         }
     }
-
-    # Optional convenience used by the extension popup:
-    result['summary'] = "Likely phishing" if result['is_phishing'] else "Likely Safe"
+    result['summary'] = 'Likely phishing' if result['is_phishing'] else 'Likely Safe'
     result['confidence_percentage'] = f"{round(conf * 100, 1)}%"
-
     return result
 
 def process_eml_file(file_storage):
@@ -2375,48 +2367,74 @@ async def email_analysis():
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
 @app.route('/api/upload_email', methods=['POST'])
-def upload_email():
-    file = request.files.get('file')
-    if not file:
-        return jsonify({"error": "No file provided"}), 400
-
-    # Parse the email file (your existing function)
+async def api_upload_email():
     try:
-        filename = file.filename or "upload.eml"
+        files = await request.files
+        file = files.get('file')
+        if not file:
+            return jsonify({'error': 'No file provided'}), 400
+
+        filename = file.filename or 'upload.eml'
         ext = os.path.splitext(filename)[1].lower()
         if ext not in ('.eml', '.msg'):
-            return jsonify({"error": "Invalid file type. Please upload a .eml or .msg file."}), 400
+            return jsonify({'error': 'Invalid file type. Please upload a .eml or .msg file.'}), 400
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            file.save(tmp.name)
+            await file.save(tmp.name)
             temp_path = tmp.name
 
-        email_data = parse_email_file(temp_path, ext)  # subject, sender, body, html_content, embedded_links, attachments
+        # Use your existing parser
+        email_data = parse_email_file(temp_path, ext)  # returns body, html_content, subject, sender, embedded_links, attachments
+        body = email_data.get('body', '') or ''
+        html = email_data.get('html_content', '') or ''
 
-        body_text = email_data.get('body', '') or ''
-        html_text = email_data.get('html_content', '') or ''
-        model_out = detector.analyze_email(body_text, html_text)
+        # Run model
+        analysis = detector.analyze_email(body, html)
+        if not isinstance(analysis, dict):
+            analysis = {'is_phishing': False, 'confidence': 0.0, 'features': {}}
+
+        # normalize links to include suspicious boolean
+        links = email_data.get('embedded_links', []) or []
+        norm_links = []
+        for l in links:
+            if isinstance(l, dict):
+                u = l.get('url') or l.get('href') or ''
+                t = l.get('text') or ''
+            else:
+                u = str(l); t = str(l)
+            if not u:
+                continue
+            norm_links.append({'url': u, 'text': t, 'suspicious': _is_suspicious_url(u)})
 
         result = _build_email_result_from_parts(
             subject=email_data.get('subject', ''),
             sender=email_data.get('sender', ''),
-            body_text=body_text,
-            html_text=html_text,
-            links=email_data.get('embedded_links', []),
-            attachments=email_data.get('attachments', []),
-            model_output=model_out if isinstance(model_out, dict) else {}
+            body_text=body,
+            html_text=html,
+            links=norm_links,
+            attachments=email_data.get('attachments', []) or [],
+            model_output=analysis
         )
+        result['browser_extension'] = {
+            'summary': result['summary'],
+            'confidence_percentage': result['confidence_percentage'],
+            'quick_indicators': {
+                'has_greeting': result['features'].get('has_greeting', False),
+                'has_signature': result['features'].get('has_signature', False),
+                'has_suspicious_urls': result['features'].get('suspicious_url_count', 0) > 0,
+                'has_sensitive_requests': result['features'].get('contains_personal', False) or result['features'].get('contains_financial', False)
+            }
+        }
         return jsonify(result)
     except Exception as e:
         logger.error(f"/api/upload_email error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to process email file"}), 500
+        return jsonify({'error': 'Unexpected error while processing email file'}), 500
     finally:
         try:
             if 'temp_path' in locals() and os.path.exists(temp_path):
                 os.unlink(temp_path)
         except Exception:
             pass
-
 
 @app.route('/email_analysis_result')
 @login_required
@@ -3189,21 +3207,34 @@ async def api_analyze_email():
                 'explanation': {
                     'suspicious_indicators': ['No email content to analyze'],
                     'safe_indicators': [],
-                    'risk_assessment': {
-                        'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'
-                    }
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
                 }
             }), 400
 
-        logger.info(f"Received email data: {json.dumps(data, indent=2)}")
+        # accept both shapes
+        payload = data.get('email_content') if isinstance(data, dict) else None
+        if not isinstance(payload, dict):
+            payload = data
 
-        subject = data.get('subject', '')
-        sender  = data.get('sender', '')
-        body    = data.get('body', '') or ''
-        html    = data.get('html', '') or ''
-        links   = data.get('links', []) or []
-        # Optional attachments if your extension ever sends them
-        attachments = data.get('attachments', []) or []
+        subject = payload.get('subject', '') or ''
+        sender  = payload.get('sender', '') or ''
+        body    = payload.get('body', '') or ''
+        html    = payload.get('html', '') or ''
+        links   = payload.get('links', []) or []
+        atts    = payload.get('attachments', []) or []
+
+        # normalize links to include 'suspicious' field
+        norm_links = []
+        for l in links:
+            if isinstance(l, dict):
+                url = l.get('url') or l.get('href') or ''
+                text = l.get('text') or ''
+            else:
+                url = str(l)
+                text = str(l)
+            if not url:
+                continue
+            norm_links.append({'url': url, 'text': text, 'suspicious': _is_suspicious_url(url)})
 
         if not body and not html:
             return jsonify({
@@ -3213,35 +3244,34 @@ async def api_analyze_email():
                 'explanation': {
                     'suspicious_indicators': ['No email content to analyze'],
                     'safe_indicators': [],
-                    'risk_assessment': {
-                        'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'
-                    }
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
                 }
             }), 400
 
-        model_out = detector.analyze_email(body, html)
+        # Run your ML detector (combine text + html carefully)
+        analysis = detector.analyze_email(body, html)
+        if not isinstance(analysis, dict):
+            analysis = {'is_phishing': False, 'confidence': 0.0, 'features': {}}
+
         result = _build_email_result_from_parts(
             subject=subject, sender=sender, body_text=body, html_text=html,
-            links=links, attachments=attachments,
-            model_output=model_out if isinstance(model_out, dict) else {}
+            links=norm_links, attachments=atts, model_output=analysis
         )
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error in api_analyze_email: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': str(e),
-            'is_phishing': False,
-            'confidence': 0.0,
-            'explanation': {
-                'suspicious_indicators': [f'Error analyzing email: {str(e)}'],
-                'safe_indicators': [],
-                'risk_assessment': {
-                    'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'
-                }
+        # Keep a compact extension-specific envelope as well
+        result['browser_extension'] = {
+            'summary': result['summary'],
+            'confidence_percentage': result['confidence_percentage'],
+            'quick_indicators': {
+                'has_greeting': result['features'].get('has_greeting', False),
+                'has_signature': result['features'].get('has_signature', False),
+                'has_suspicious_urls': result['features'].get('suspicious_url_count', 0) > 0,
+                'has_sensitive_requests': result['features'].get('contains_personal', False) or result['features'].get('contains_financial', False)
             }
-        }), 500
-
+        }
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"/api/analyze_email error: {e}", exc_info=True)
+        return jsonify({'error': 'Unexpected error while analyzing email'}), 500
 
 @app.errorhandler(404)
 async def not_found(e):
@@ -3266,6 +3296,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
