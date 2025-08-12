@@ -73,18 +73,17 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 # Replace your existing @app.after_request CORS helper with this:
 @app.after_request
-async def add_cors_headers(response):
+def add_cors_headers(resp):
     origin = request.headers.get('Origin')
     if origin:
-        # Allow the requesting origin (including chrome-extension://...)
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Vary'] = 'Origin'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Vary'] = 'Origin'
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
     else:
-        response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return resp
 
 @app.route('/options', methods=['OPTIONS'])
 async def handle_options():
@@ -3391,6 +3390,80 @@ async def api_ext_analyze_and_store():
         logger.error(f"api_ext_analyze_and_store error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ext/upload-eml-and-store', methods=['POST'])
+def api_ext_upload_eml_and_store():
+    try:
+        file = request.files.get('file')
+        if not file:
+            return jsonify({'error': 'No file provided'}), 400
+
+        filename = file.filename or 'message.eml'
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ('.eml', '.msg'):
+            return jsonify({'error': 'Invalid file type. Please upload a .eml or .msg file.'}), 400
+
+        # save temp
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            file.save(tmp.name)
+            temp_path = tmp.name
+
+        # parse using your existing helper
+        email_data = parse_email_file(temp_path, ext)  # subject, sender, body, html_content, embedded_links, attachments
+
+        body = email_data.get('body', '') or ''
+        html = email_data.get('html_content', '') or ''
+
+        # run your existing model
+        model_out = detector.analyze_email(body, html)
+        if not isinstance(model_out, dict):
+            model_out = {'is_phishing': False, 'confidence': 0.0, 'features': {}}
+
+        # build the same result shape your template expects
+        result = _build_email_result_from_parts(
+            subject=email_data.get('subject', ''),
+            sender=email_data.get('sender', ''),
+            body_text=body,
+            html_text=html,
+            links=email_data.get('embedded_links', []) or [],
+            attachments=email_data.get('attachments', []) or [],
+            model_output=model_out
+        )
+
+        # mirror your manual flow: session metadata + big fields to a temp file
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence': result['confidence'],
+            'features': result['features'],
+            'metadata': {
+                'subject': result['subject'],
+                'sender': result['sender'],
+                'date': result['date'],
+            }
+        }
+
+        analysis_id = str(uuid.uuid4())
+        big_blob_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+        with open(big_blob_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'body': result.get('body', ''),
+                'html_content': result.get('html_content', ''),
+                'embedded_links': result.get('embedded_links', []),
+                'attachments': result.get('attachments', []),
+            }, f)
+        session['email_analysis_id'] = analysis_id
+
+        # return relative redirect path; extension will open it
+        return jsonify({'redirect': url_for('email_analysis_result')})
+    except Exception as e:
+        logger.error(f'/api/ext/upload-eml-and-store error: {e}', exc_info=True)
+        return jsonify({'error': 'Unexpected error while processing EML'}), 500
+    finally:
+        try:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.unlink(temp_path)
+        except Exception:
+            pass
+
 @app.errorhandler(404)
 async def not_found(e):
     logger.error(f"404 Not Found: {request.url}")
@@ -3414,6 +3487,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
