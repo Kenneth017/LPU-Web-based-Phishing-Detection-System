@@ -39,6 +39,10 @@ import tempfile
 import time
 import uuid
 
+app.config.update(
+    SESSION_COOKIE_SAMESITE='None',   # allow third-party iframes
+    SESSION_COOKIE_SECURE=True        # required by browsers when SameSite=None
+)
 # Set up timezone
 singapore_tz = pytz.timezone('Asia/Singapore')
 
@@ -3267,6 +3271,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
