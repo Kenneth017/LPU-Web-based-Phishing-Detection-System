@@ -3329,7 +3329,7 @@ async def api_ext_analyze_and_store():
             }
 
         # Return redirect URL so the extension can open the same page
-        return jsonify({'redirect': url_for('email_analysis_result')})
+        return jsonify({"redirect": url_for("email_analysis_result")}), 200
 
     except Exception as e:
         logger.error(f"/api/ext/analyze-and-store error: {e}", exc_info=True)
@@ -3465,7 +3465,7 @@ async def ext_upload_eml_and_store():
             except Exception:
                 pass
 
-        return jsonify({'redirect': url_for('email_analysis_result')})
+        return jsonify({"redirect": url_for("email_analysis_result")}), 200
 
     except Exception as e:
         logger.error("ext_upload_eml_and_store failed", exc_info=True)
@@ -3482,6 +3482,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
