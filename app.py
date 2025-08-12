@@ -73,11 +73,17 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 # CORS setup
 @app.after_request
-async def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
+async def add_cors_headers(resp):
+    origin = request.headers.get('Origin')
+    if origin:
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Vary'] = 'Origin'
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+    else:
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return resp
 
 @app.route('/options', methods=['OPTIONS'])
 async def handle_options():
@@ -3129,43 +3135,157 @@ feedback_handler = FeedbackHandler()
 
 URL_RE = re.compile(r'https?://[^\s<>"\'\)]{3,}', re.IGNORECASE)
 
-# ---- helper: extract links from body/html (used by extension path) ----
-def _extract_links_from_text_or_html(body_text: str, html_text: str):
+def _html_to_text(html: str) -> str:
+    if not html:
+        return ""
+    html = re.sub(r'<style[\s\S]*?</style>', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'<script[\s\S]*?</script>', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'<[^>]+>', ' ', html)
+    return re.sub(r'\s+', ' ', html).strip()
+
+def _extract_links_from_text_or_html(text_body: str, html_body: str):
     links = []
     # from HTML <a href=...>
-    if html_text:
-        try:
-            soup = BeautifulSoup(html_text, "html.parser")
-            for a in soup.find_all("a", href=True):
-                raw = (a["href"] or "").strip()
-                if not raw:
-                    continue
-                if raw.startswith("mailto:") or not raw.startswith(("http://","https://")):
-                    continue
-                text = (a.get_text() or "").strip()
+    if html_body:
+        for m in re.finditer(r'<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+                             html_body, flags=re.IGNORECASE | re.DOTALL):
+            href = (m.group(1) or "").strip()
+            label = re.sub(r'\s+', ' ', (m.group(2) or '').strip())
+            if href:
                 links.append({
-                    "text": text[:120] if text else raw,
-                    "url": raw,
-                    "suspicious": bool(is_suspicious_url(raw))
+                    "text": label or href,
+                    "url": href,
+                    "suspicious": bool(is_suspicious_url(href))
                 })
-        except Exception:
-            pass
-    if body_text:
-        for m in re.finditer(r'https?://[^\s<>"\)\]]+', body_text):
-            url = m.group(0)
-            links.append({
-                "text": url,
-                "url": url,
-                "suspicious": bool(is_suspicious_url(url))
-            })
+    # from plaintext
+    for m in URL_RE.finditer(text_body or ""):
+        href = m.group(0)
+        links.append({
+            "text": href,
+            "url": href,
+            "suspicious": bool(is_suspicious_url(href))
+        })
+    # de-dup
     dedup = {}
-    for item in links:
-        u = item.get("url","")
-        if u and u not in dedup:
-            dedup[u] = item
+    for L in links:
+        dedup.setdefault(L["url"], L)
     return list(dedup.values())
 
+@app.route("/api/ext/upload-eml-and-store", methods=["POST"])
+async def ext_upload_eml_and_store():
+    try:
+        # QUART: request.files is awaitable → first await it
+        files = await request.files
+        f = files.get("file") or files.get("email_file")
+        if not f or not f.filename:
+            return jsonify({"error": "No EML file uploaded"}), 400
 
+        # Some environments give FileStorage.read() sync; guard both ways
+        try:
+            raw = await f.read()          # try async read (if supported)
+        except TypeError:
+            raw = f.read()                # fallback to sync read
+
+        if not raw:
+            return jsonify({"error": "Empty file"}), 400
+
+        # Parse EML from bytes
+        msg = BytesParser(policy=policy.default).parsebytes(raw)
+
+        subject = msg.get("Subject", "") or ""
+        sender  = msg.get("From", "") or ""
+        date    = msg.get("Date", "") or ""
+
+        text_body, html_body = "", ""
+        attachments = []
+
+        if msg.is_multipart():
+            for part in msg.walk():
+                ctype = (part.get_content_type() or "").lower()
+                disp  = (part.get("Content-Disposition") or "").lower()
+                # inline bodies
+                if ctype == "text/plain" and "attachment" not in disp:
+                    try:
+                        text_body += part.get_content()
+                    except Exception:
+                        pass
+                elif ctype == "text/html" and "attachment" not in disp:
+                    try:
+                        html_body += part.get_content()
+                    except Exception:
+                        pass
+                # attachment metadata (optional, shown in your result table)
+                else:
+                    filename = part.get_filename() or ""
+                    if filename:
+                        payload = part.get_payload(decode=True) or b""
+                        attachments.append({
+                            "filename": filename,
+                            "size": len(payload),
+                            "content_type": ctype,
+                            "hash": {"md5": "", "sha1": "", "sha256": ""}  # fill if you hash
+                        })
+        else:
+            ctype = (msg.get_content_type() or "").lower()
+            if ctype == "text/plain":
+                text_body = msg.get_content()
+            elif ctype == "text/html":
+                html_body = msg.get_content()
+
+        if not text_body and html_body:
+            text_body = _html_to_text(html_body)
+
+        # Extract links if any
+        embedded_links = _extract_links_from_text_or_html(text_body, html_body)
+
+        # Run your existing detector (same as manual upload)
+        analysis = detector.analyze_email(text_body or "", html_body or "")
+        if not isinstance(analysis, dict):
+            analysis = {"is_phishing": False, "confidence": 0.0, "features": {}, "explanation": {}}
+
+        # Build the result object exactly like the template expects
+        result = _build_email_result_from_parts(
+            subject=subject,
+            sender=sender,
+            date=date,
+            body_text=text_body or "",
+            html_text=html_body or "",
+            links=embedded_links,
+            attachments=attachments,
+            model_output=analysis,
+            analyzed_at=get_singapore_time()
+        )
+
+        # Persist for the /email_analysis_result page (same as manual flow)
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence' : float(result['confidence']),
+            'features'   : result['features'],
+            'metadata'   : {
+                'subject': result['subject'],
+                'sender' : result['sender'],
+                'date'   : result.get('date') or get_singapore_time(),
+            },
+            'explanation': result['explanation'],
+        }
+
+        analysis_id = str(uuid.uuid4())
+        session['email_analysis_id'] = analysis_id
+        tmp_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+        with open(tmp_path, 'w', encoding='utf-8') as fp:
+            json.dump({
+                'body'          : result.get('body', ''),
+                'html_content'  : result.get('html_content', ''),
+                'embedded_links': result.get('embedded_links', []),
+                'attachments'   : result.get('attachments', []),
+            }, fp, ensure_ascii=False)
+
+        # Return relative redirect; your extension prepends BACKEND_BASE
+        return jsonify({"redirect": url_for("email_analysis_result")}), 200
+
+    except Exception as e:
+        logger.exception("ext_upload_eml_and_store failed")
+        return jsonify({"error": f"Unexpected error while processing EML: {e}"}), 500
 
 # ---- EXTENSION ENTRYPOINT: analyze + store + return redirect for UI ----
 @app.route('/api/ext/analyze-and-store', methods=['POST'])
@@ -3230,91 +3350,6 @@ async def api_ext_analyze_and_store():
         logger.error(f"/api/ext/analyze-and-store error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-# --- NEW: extension .eml upload + store + redirect ---
-@app.route("/api/ext/upload-eml-and-store", methods=["POST"])
-def ext_upload_eml_and_store():
-    try:
-        file = request.files.get("file")
-        if not file or not file.filename:
-            return jsonify({"error": "No EML file uploaded"}), 400
-
-        raw = file.read()
-        if not raw:
-            return jsonify({"error": "Empty file"}), 400
-
-        # Parse EML
-        msg = BytesParser(policy=policy.default).parsebytes(raw)
-
-        subject = msg.get("Subject", "") or ""
-        sender  = msg.get("From", "") or ""
-        date    = msg.get("Date", "") or ""
-
-        text_body, html_body = "", ""
-        attachments = []
-
-        if msg.is_multipart():
-            for part in msg.walk():
-                ctype = part.get_content_type().lower()
-                disp  = (part.get("Content-Disposition") or "").lower()
-
-                if ctype == "text/plain" and "attachment" not in disp:
-                    try:
-                        text_body += part.get_content()
-                    except Exception:
-                        pass
-                elif ctype == "text/html" and "attachment" not in disp:
-                    try:
-                        html_body += part.get_content()
-                    except Exception:
-                        pass
-                else:
-                    # collect attachment meta if you show them in result page
-                    filename = part.get_filename() or ""
-                    if filename:
-                        attachments.append({
-                            "filename": filename,
-                            "size": len(part.get_payload(decode=True) or b""),
-                            "content_type": ctype,
-                            "hash": {"md5": "", "sha1": "", "sha256": ""}  # fill if you already compute hashes
-                        })
-        else:
-            # single-part
-            ctype = msg.get_content_type().lower()
-            if ctype == "text/plain":
-                text_body = msg.get_content()
-            elif ctype == "text/html":
-                html_body = msg.get_content()
-
-        if not text_body and html_body:
-            text_body = _html_to_text(html_body)
-
-        # Build/complete links like in manual flow
-        embedded_links = _extract_links_from_text_or_html(text_body, html_body)
-
-        # Run your analyzer exactly like manual uploads
-        analysis = detector.analyze_email(text_body or "", html_body or "")
-
-        # Build the final dict your Jinja result expects
-        result = _build_email_result_from_parts(
-            subject=subject,
-            sender=sender,
-            date=date,
-            body=text_body or "",
-            html=html_body or "",
-            embedded_links=embedded_links,
-            attachments=attachments,
-            analysis=analysis,
-            analyzed_at=get_singapore_time()
-        )
-
-        # Persist for result page and return redirect path
-        _persist_result_for_result_page(result)
-        return jsonify({"redirect": "/email_analysis_result"}), 200
-
-    except Exception as e:
-        logger.exception("ext_upload_eml_and_store failed")
-        return jsonify({"error": f"Unexpected error while processing EML: {e}"}), 500
-
 
 if __name__ == '__main__':
     try:
@@ -3325,6 +3360,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
