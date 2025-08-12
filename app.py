@@ -2262,8 +2262,13 @@ def upload_email():
     file = request.files.get('file')
     if not file:
         return jsonify({"error": "No file provided"}), 400
-    # process the .eml same as manual upload
-    result = process_eml_file(file)
+
+    result = process_eml_file(file)  # may return dict OR (dict, status)
+
+    if isinstance(result, tuple) and len(result) == 2:
+        payload, status = result
+        return jsonify(payload), status
+
     return jsonify(result)
 
 @app.route('/email_analysis_result')
@@ -3029,7 +3034,7 @@ async def admin_initiate_reset(user_id):
 async def api_analyze_email():
     try:
         data = await request.get_json()
-        
+
         if not data:
             return jsonify({
                 'error': 'No data provided',
@@ -3038,28 +3043,29 @@ async def api_analyze_email():
                 'explanation': {
                     'suspicious_indicators': ['No email content to analyze'],
                     'safe_indicators': [],
-                    'risk_assessment': {
-                        'url_risk': 'Low',
-                        'content_risk': 'Low',
-                        'structure_risk': 'Low'
-                    }
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
                 }
             }), 400
 
-        # Log received data
-        logger.info(f"Received email data: {json.dumps(data, indent=2)}")
+        # Accept BOTH shapes:
+        #   A) { email_content: {...}, is_browser_extension: true }
+        #   B) { subject, sender, body, html, links, date }
+        payload = (data.get('email_content') or data) if isinstance(data, dict) else {}
+        subject = payload.get('subject', '') or ''
+        sender  = payload.get('sender', '') or ''
+        body    = payload.get('body', '')   or ''
+        html    = payload.get('html', '')   or ''
+        links   = payload.get('links') or payload.get('embedded_links') or []
+        date    = payload.get('date', '')   or get_singapore_time()
 
-        # Extract email content
-        email_content = {
-            'subject': data.get('subject', ''),
-            'sender': data.get('sender', ''),
-            'body': data.get('body', ''),
-            'html': data.get('html', ''),
-            'links': data.get('links', []),
-            'date': data.get('date', '')
-        }
+        # If body is empty but we have HTML, make a plain-text fallback
+        if not body and html:
+            try:
+                body = BeautifulSoup(html, 'html.parser').get_text(" ", strip=True)
+            except Exception:
+                pass
 
-        if not email_content['body'] and not email_content['html']:
+        if not body and not html:
             return jsonify({
                 'error': 'Empty email content',
                 'is_phishing': False,
@@ -3067,34 +3073,35 @@ async def api_analyze_email():
                 'explanation': {
                     'suspicious_indicators': ['No email content to analyze'],
                     'safe_indicators': [],
-                    'risk_assessment': {
-                        'url_risk': 'Low',
-                        'content_risk': 'Low',
-                        'structure_risk': 'Low'
-                    }
+                    'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
                 }
             }), 400
 
-        # Use your existing EmailPhishingDetector
-        result = detector.analyze_email(email_content)
-        
-        # Ensure result has all required fields
-        if not isinstance(result, dict):
-            result = {
-                'is_phishing': False,
-                'confidence': 0.0,
-                'explanation': {
-                    'suspicious_indicators': ['Error analyzing email'],
-                    'safe_indicators': [],
-                    'risk_assessment': {
-                        'url_risk': 'Low',
-                        'content_risk': 'Low',
-                        'structure_risk': 'Low'
-                    }
-                }
-            }
+        # IMPORTANT: call detector with strings, not a dict
+        analysis = detector.analyze_email(body, html)
 
-        return jsonify(result)
+        if not isinstance(analysis, dict):
+            analysis = {}
+
+        analysis.setdefault("is_phishing", False)
+        analysis.setdefault("confidence", 0.0)
+        analysis.setdefault("explanation", {
+            "suspicious_indicators": [],
+            "safe_indicators": [],
+            "risk_assessment": {"url_risk": "Low", "content_risk": "Low", "structure_risk": "Low"}
+        })
+
+        # Add convenient fields the popup uses
+        analysis.update({
+            "subject": subject,
+            "sender": sender,
+            "date": date,
+            "links": links,
+            "summary": "Likely phishing" if analysis["is_phishing"] else "Likely safe",
+            "confidence_percentage": f"{round(float(analysis.get('confidence', 0.0)) * 100)}%"
+        })
+
+        return jsonify(analysis)
 
     except Exception as e:
         logger.error(f"Error in api_analyze_email: {str(e)}", exc_info=True)
@@ -3105,11 +3112,7 @@ async def api_analyze_email():
             'explanation': {
                 'suspicious_indicators': [f'Error analyzing email: {str(e)}'],
                 'safe_indicators': [],
-                'risk_assessment': {
-                    'url_risk': 'Low',
-                    'content_risk': 'Low',
-                    'structure_risk': 'Low'
-                }
+                'risk_assessment': {'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'}
             }
         }), 500
 
@@ -3136,6 +3139,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
