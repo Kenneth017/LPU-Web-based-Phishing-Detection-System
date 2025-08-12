@@ -1966,6 +1966,85 @@ def parse_email_file(file_path, file_type):
         logger.error(f"Error parsing email file: {str(e)}")
         raise
 
+def process_eml_file(file_storage):
+    """
+    Accepts a Werkzeug/Quart FileStorage for a .eml or .msg, parses it,
+    runs the ML detector, and returns a JSON-serializable dict.
+    """
+    try:
+        filename = file_storage.filename or "upload.eml"
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ('.eml', '.msg'):
+            return {"error": "Invalid file type. Please upload a .eml or .msg file."}, 400
+
+        # Save to a temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            file_storage.save(tmp.name)
+            temp_path = tmp.name
+
+        # Parse and analyze
+        email_data = parse_email_file(temp_path, ext)
+        # Your detector has two shapes in the codebase; the /api/analyze_email path expects a dict.
+        # We'll build the same flat structure expected elsewhere.
+        body_text = email_data.get('body', '') or ''
+        html_text = email_data.get('html_content', '') or ''
+        if not body_text and not html_text:
+            return {
+                "error": "Empty email content",
+                "is_phishing": False,
+                "confidence": 0.0,
+                "explanation": {
+                    "suspicious_indicators": ["No email content to analyze"],
+                    "safe_indicators": [],
+                    "risk_assessment": {
+                        "url_risk": "Low",
+                        "content_risk": "Low",
+                        "structure_risk": "Low"
+                    }
+                }
+            }, 400
+
+        # Run model (your code shows detector.analyze_email used with either text or a dict)
+        # If your model expects combined text, pass both:
+        analysis = detector.analyze_email(body_text, html_text)
+
+        # Attach useful metadata for the UI
+        analysis = analysis if isinstance(analysis, dict) else {}
+        analysis.setdefault("is_phishing", False)
+        analysis.setdefault("confidence", 0.0)
+        analysis.setdefault("explanation", {
+            "suspicious_indicators": [],
+            "safe_indicators": [],
+            "risk_assessment": {
+                "url_risk": "Low",
+                "content_risk": "Low",
+                "structure_risk": "Low"
+            }
+        })
+
+        analysis.update({
+            "subject": email_data.get("subject", ""),
+            "sender": email_data.get("sender", ""),
+            "date": get_singapore_time(),
+            "embedded_links": email_data.get("embedded_links", []),
+            "attachments": email_data.get("attachments", []),
+            # Optional convenience fields for your popup:
+            "summary": "Likely phishing" if analysis["is_phishing"] else "Likely safe",
+            "confidence_percentage": f"{round(float(analysis.get('confidence', 0.0)) * 100)}%"
+        })
+
+        return analysis
+    except Exception as e:
+        logger.error(f"process_eml_file error: {e}", exc_info=True)
+        return {"error": "Failed to process email file"}, 500
+    finally:
+        try:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.unlink(temp_path)
+        except Exception:
+            pass
+
+
 def is_suspicious_url(url):
     """Enhanced suspicious URL detection"""
     try:
@@ -3057,6 +3136,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
