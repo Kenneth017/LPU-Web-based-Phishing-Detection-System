@@ -71,17 +71,30 @@ load_dotenv()
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
 
-# CORS setup
+# Replace your existing @app.after_request CORS helper with this:
 @app.after_request
 async def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    origin = request.headers.get('Origin')
+    if origin:
+        # Allow the requesting origin (including chrome-extension://...)
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Vary'] = 'Origin'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    else:
+        response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
 
 @app.route('/options', methods=['OPTIONS'])
 async def handle_options():
-    return '', 204
+    # If you want to be extra explicit:
+    response = jsonify({})
+    response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response, 204
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -3273,6 +3286,111 @@ async def api_analyze_email():
         logger.error(f"/api/analyze_email error: {e}", exc_info=True)
         return jsonify({'error': 'Unexpected error while analyzing email'}), 500
 
+# NEW: Extension -> analyze + store -> redirect to the same results page
+@app.route('/api/ext/analyze-and-store', methods=['POST'])
+async def api_ext_analyze_and_store():
+    try:
+        data = await request.get_json() or {}
+        # The extension may wrap content under email_content
+        incoming = data.get('email_content', data) or {}
+
+        subject = incoming.get('subject', '') or ''
+        sender  = incoming.get('sender', '') or ''
+        body    = incoming.get('body', '') or ''
+        html    = incoming.get('html', '') or ''
+        links   = incoming.get('links', []) or []
+        attachments = incoming.get('attachments', []) or []
+
+        if not body and not html:
+            return jsonify({
+                'error': 'Empty email content',
+                'is_phishing': False,
+                'confidence': 0.0,
+                'explanation': {
+                    'suspicious_indicators': ['No email content to analyze'],
+                    'safe_indicators': [],
+                    'risk_assessment': {
+                        'url_risk': 'Low', 'content_risk': 'Low', 'structure_risk': 'Low'
+                    }
+                }
+            }), 400
+
+        # Run your existing model (same call used elsewhere)
+        model_out = detector.analyze_email(body, html)
+
+        # Build the same result shape your templates expect
+        result = _build_email_result_from_parts(
+            subject=subject,
+            sender=sender,
+            body_text=body,
+            html_text=html,
+            links=links,
+            attachments=attachments,
+            model_output=model_out if isinstance(model_out, dict) else {}
+        )
+
+        #
+        # Store session + big fields in a temp file  (mirrors your manual upload flow)
+        #
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence': result['confidence'],
+            'features': result['features'],
+            'metadata': {
+                'subject': result['subject'],
+                'sender': result['sender'],
+                'date': result['date'],
+            }
+        }
+
+        import uuid, tempfile, os, json
+        analysis_id = str(uuid.uuid4())
+        temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+        with open(temp_data_path, 'w') as f:
+            json.dump({
+                'body': result.get('body', ''),
+                'html_content': result.get('html_content', ''),
+                'embedded_links': result.get('embedded_links', links),
+                'attachments': result.get('attachments', []),
+            }, f)
+        session['email_analysis_id'] = analysis_id
+
+        # OPTIONAL: record to analysis_history like your /check route does
+        # (uncomment if you want extension analyses in history)
+        """
+        try:
+            user_id = session.get('user_id')
+            if user_id:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO analysis_history 
+                    (input_string, input_type, is_malicious, community_score, metadata, 
+                     vendor_analysis, user_id, analysis_date, main_verdict)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    f"Email: {subject or '(no subject)'}",
+                    'email',
+                    int(result['is_phishing']),
+                    None,
+                    json.dumps({'subject': subject, 'sender': sender}),
+                    json.dumps([]),
+                    user_id,
+                    get_singapore_time(),
+                    'phishing' if result['is_phishing'] else 'safe'
+                ))
+                conn.commit()
+                conn.close()
+        except Exception as e:
+            logger.warning(f'History insert failed (extension path): {e}')
+        """
+
+        # Tell the extension which page to open
+        return jsonify({'redirect': url_for('email_analysis_result')})
+    except Exception as e:
+        logger.error(f"api_ext_analyze_and_store error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 async def not_found(e):
     logger.error(f"404 Not Found: {request.url}")
@@ -3296,6 +3414,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
