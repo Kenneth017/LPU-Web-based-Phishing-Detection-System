@@ -3127,6 +3127,7 @@ ensure_db_directory()
 migrate_database()  # Then migrate if needed
 feedback_handler = FeedbackHandler()
 
+URL_RE = re.compile(r'https?://[^\s<>"\'\)]{3,}', re.IGNORECASE)
 
 # ---- helper: extract links from body/html (used by extension path) ----
 def _extract_links_from_text_or_html(body_text: str, html_text: str):
@@ -3229,6 +3230,91 @@ async def api_ext_analyze_and_store():
         logger.error(f"/api/ext/analyze-and-store error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+# --- NEW: extension .eml upload + store + redirect ---
+@app.route("/api/ext/upload-eml-and-store", methods=["POST"])
+def ext_upload_eml_and_store():
+    try:
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return jsonify({"error": "No EML file uploaded"}), 400
+
+        raw = file.read()
+        if not raw:
+            return jsonify({"error": "Empty file"}), 400
+
+        # Parse EML
+        msg = BytesParser(policy=policy.default).parsebytes(raw)
+
+        subject = msg.get("Subject", "") or ""
+        sender  = msg.get("From", "") or ""
+        date    = msg.get("Date", "") or ""
+
+        text_body, html_body = "", ""
+        attachments = []
+
+        if msg.is_multipart():
+            for part in msg.walk():
+                ctype = part.get_content_type().lower()
+                disp  = (part.get("Content-Disposition") or "").lower()
+
+                if ctype == "text/plain" and "attachment" not in disp:
+                    try:
+                        text_body += part.get_content()
+                    except Exception:
+                        pass
+                elif ctype == "text/html" and "attachment" not in disp:
+                    try:
+                        html_body += part.get_content()
+                    except Exception:
+                        pass
+                else:
+                    # collect attachment meta if you show them in result page
+                    filename = part.get_filename() or ""
+                    if filename:
+                        attachments.append({
+                            "filename": filename,
+                            "size": len(part.get_payload(decode=True) or b""),
+                            "content_type": ctype,
+                            "hash": {"md5": "", "sha1": "", "sha256": ""}  # fill if you already compute hashes
+                        })
+        else:
+            # single-part
+            ctype = msg.get_content_type().lower()
+            if ctype == "text/plain":
+                text_body = msg.get_content()
+            elif ctype == "text/html":
+                html_body = msg.get_content()
+
+        if not text_body and html_body:
+            text_body = _html_to_text(html_body)
+
+        # Build/complete links like in manual flow
+        embedded_links = _extract_links_from_text_or_html(text_body, html_body)
+
+        # Run your analyzer exactly like manual uploads
+        analysis = detector.analyze_email(text_body or "", html_body or "")
+
+        # Build the final dict your Jinja result expects
+        result = _build_email_result_from_parts(
+            subject=subject,
+            sender=sender,
+            date=date,
+            body=text_body or "",
+            html=html_body or "",
+            embedded_links=embedded_links,
+            attachments=attachments,
+            analysis=analysis,
+            analyzed_at=get_singapore_time()
+        )
+
+        # Persist for result page and return redirect path
+        _persist_result_for_result_page(result)
+        return jsonify({"redirect": "/email_analysis_result"}), 200
+
+    except Exception as e:
+        logger.exception("ext_upload_eml_and_store failed")
+        return jsonify({"error": f"Unexpected error while processing EML: {e}"}), 500
+
 
 if __name__ == '__main__':
     try:
@@ -3239,6 +3325,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
