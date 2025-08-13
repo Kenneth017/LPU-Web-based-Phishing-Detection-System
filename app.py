@@ -3512,6 +3512,54 @@ async def ext_analyze_and_store():
         logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
         return jsonify({'error': 'Server error'}), 500
 
+# app.py — add near other ext endpoints
+@app.route('/api/ext/url-quick-check', methods=['OPTIONS', 'POST'])
+async def ext_url_quick_check():
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    # Require login (same as your other ext routes)
+    if 'user_id' not in session:
+        return jsonify({
+            "login_required": True,
+            "redirect": url_for('login', next=request.url)
+        }), 401
+
+    try:
+        data = await request.get_json(silent=True) or {}
+        url = (data.get('url') or '').strip()
+        if not url:
+            return jsonify({"error": "url is required"}), 400
+
+        # Reuse your existing analyzer
+        result = await analyze_input(url)
+
+        # Same main-verdict logic you use elsewhere
+        verdict_counts = {'phishing': 0, 'malicious': 0, 'suspicious': 0, 'safe': 0}
+        for v in result.get('vendor_analysis', []):
+            vr = (v.get('verdict') or '').lower()
+            if vr == 'phishing': verdict_counts['phishing'] += 1
+            elif vr == 'malicious': verdict_counts['malicious'] += 1
+            elif vr == 'suspicious': verdict_counts['suspicious'] += 1
+            elif vr in ('clean','harmless','safe'): verdict_counts['safe'] += 1
+
+        main_verdict = 'safe'
+        if verdict_counts['phishing'] > 0:   main_verdict = 'phishing'
+        elif verdict_counts['malicious'] > 0: main_verdict = 'malicious'
+        elif verdict_counts['suspicious'] > 0: main_verdict = 'suspicious'
+
+        return jsonify({
+            "url": url,
+            "main_verdict": main_verdict,
+            "is_malicious": main_verdict != 'safe',
+            "vendor_analysis": result.get('vendor_analysis', []),
+            "metadata": result.get('metadata', {}),
+            "community_score": result.get('community_score')
+        })
+    except Exception as e:
+        current_app.logger.error(f"/api/ext/url-quick-check error: {e}", exc_info=True)
+        return jsonify({"error": "Server error"}), 500
+
 @app.errorhandler(404)
 async def not_found(e):
     logger.error(f"404 Not Found: {request.url}")
@@ -3535,6 +3583,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
