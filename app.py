@@ -3275,9 +3275,9 @@ async def ext_analyze_and_store():
         subject = sender = body = html = ''
         try:
             payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
-            subject = payload.get('subject','') or payload.get('headers',{}).get('subject','')
-            sender  = payload.get('from','')    or payload.get('sender','') or payload.get('headers',{}).get('fromEmail','')
-            body    = payload.get('text','')    or payload.get('body','')
+            subject = payload.get('subject','')
+            sender  = payload.get('sender','') or payload.get('from','') or payload.get('headers',{}).get('fromEmail','')
+            body    = payload.get('body','')    or payload.get('text','')
             html    = payload.get('html','')    or payload.get('html_content','')
         except Exception:
             body = email_content if isinstance(email_content, str) else ''
@@ -3453,6 +3453,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
