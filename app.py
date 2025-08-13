@@ -3257,136 +3257,6 @@ def _require_login_json():
         }), 401
     return None
 
-@app.route('/api/ext/analyze-and-store', methods=['OPTIONS', 'POST'])
-async def ext_analyze_and_store():
-    if request.method == 'OPTIONS':
-        return '', 204
-
-    # JSON-friendly auth (avoid template redirects in XHR)
-    if 'user_id' not in session:
-        return jsonify({
-            "login_required": True,
-            "redirect": url_for('login', next=url_for('email_analysis_result'))
-        }), 401
-
-    try:
-        data = await request.get_json(silent=True) or {}
-        email_content = data.get('email_content', '')
-        if not email_content:
-            return jsonify({'error': 'email_content required'}), 400
-
-        # Parse the payload (stringified JSON or dict)
-        try:
-            payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
-        except Exception:
-            payload = {'body': email_content}  # treat as plain text
-
-        subject = payload.get('subject','') or payload.get('headers',{}).get('subject','')
-        sender  = payload.get('from','')    or payload.get('sender','') or payload.get('headers',{}).get('fromEmail','')
-        body    = payload.get('body','')    or payload.get('text','')
-        html    = payload.get('html','')    or payload.get('html_content','')
-        links   = payload.get('links', [])  # <-- use links from the scrape if present
-        atts    = payload.get('attachments', [])
-
-        # Normalize Gmail redirect links to real targets
-        def unwrap_gmail_redirect(u: str) -> str:
-            try:
-                if not u:
-                    return u
-                # Gmail often uses .../mail/u/0/.../link?url=ENCODED
-                # or attaches ?url= to googleusercontent redirects
-                from urllib.parse import urlparse, parse_qs, unquote
-                p = urlparse(u)
-                qs = parse_qs(p.query)
-                if 'url' in qs and qs['url']:
-                    return unquote(qs['url'][0])
-                return u
-            except Exception:
-                return u
-
-        norm_links = []
-        # also check for data-saferedirecturl if caller passed it
-        for L in links or []:
-            url = (L.get('url') or L.get('href') or L.get('safeRedirectUrl') or '').strip()
-            norm_links.append({
-                'text': (L.get('text') or '').strip(),
-                'url': unwrap_gmail_redirect(url),
-            })
-
-        # If caller didn't send links, you can do a light extract from HTML as a backup
-        if not norm_links and html:
-            try:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(html, 'html.parser')
-                for a in soup.find_all('a', href=True):
-                    norm_links.append({
-                        'text': (a.get_text() or '').strip(),
-                        'url' : unwrap_gmail_redirect(a.get('href')),
-                    })
-            except Exception:
-                pass
-
-        # Run your model
-        model_out = detector.analyze_email(body, html)
-
-        # Build unified result with the SAME path your .eml upload uses
-        result = _build_email_result_from_parts(
-            subject=subject, sender=sender,
-            body_text=body, html_text=html,
-            links=norm_links, attachments=atts,
-            model_output=model_out if isinstance(model_out, dict) else {}
-        )
-
-        now_iso = datetime.utcnow().isoformat()
-        session['email_analysis'] = {
-            'is_phishing': result['is_phishing'],
-            'confidence' : result['confidence'],
-            'features'   : result['features'],
-            'metadata'   : {'subject': subject, 'sender': sender, 'date': now_iso},
-            'explanation': result.get('explanation'),
-        }
-
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO analysis_history
-              (input_string, input_type, is_malicious, main_verdict, community_score,
-               metadata, vendor_analysis, user_id, analysis_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            (body or html)[:5000],
-            'email',
-            1 if result['is_phishing'] else 0,
-            'phishing' if result['is_phishing'] else 'safe',
-            None,
-            json.dumps({'subject': subject, 'sender': sender, 'date': now_iso}),
-            json.dumps([]),
-            session.get('user_id'),
-            get_singapore_time()
-        ))
-        analysis_id = c.lastrowid
-        conn.commit(); conn.close()
-        session['email_analysis_id'] = analysis_id
-
-        # Temp file for the result page
-        try:
-            with open(os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json'), 'w') as f:
-                json.dump({
-                    'html_content': html,
-                    'body': body,
-                    'embedded_links': norm_links,
-                    'attachments': atts
-                }, f)
-        except Exception:
-            pass
-
-        return jsonify({"redirect": url_for('email_analysis_result')})
-    except Exception as e:
-        logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Server error'}), 500
-
-
-
 @app.route('/api/ext/upload-eml-and-store', methods=['OPTIONS', 'POST'])
 async def ext_upload_eml_and_store():
     if request.method == 'OPTIONS':
@@ -3480,6 +3350,167 @@ async def ext_upload_eml_and_store():
         logger.error(f"/api/ext/upload-eml-and-store error: {str(e)}", exc_info=True)
         return jsonify({'error':'Server error'}), 500
 
+@app.route('/api/ext/analyze-and-store', methods=['OPTIONS', 'POST'])
+async def ext_analyze_and_store():
+    """
+    Browser-extension endpoint (JSON).
+    Input: {"email_content": <stringified JSON or dict>, "is_browser_extension": true}
+    Expected fields in email_content:
+      - subject, sender/from, body/text, html/html_content
+      - links: list of {text, url, safeRedirectUrl} (from content.js)  <-- preserved
+      - attachments: optional list
+    Returns: {"redirect": "/email_analysis_result"} (401 with login_required if not signed in)
+    """
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    # JSON-friendly auth (avoid template redirects in XHR)
+    if 'user_id' not in session:
+        return jsonify({
+            "login_required": True,
+            "redirect": url_for('login', next=url_for('email_analysis_result'))
+        }), 401
+
+    try:
+        # Parse JSON body
+        data = await request.get_json(silent=True) or {}
+        email_content = data.get('email_content', '')
+        if not email_content:
+            return jsonify({'error': 'email_content required'}), 400
+
+        # Accept either stringified JSON or a dict
+        try:
+            payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
+        except Exception:
+            payload = {'body': str(email_content)}  # treat as plain text
+
+        # Pull common fields (support multiple keys)
+        subject = payload.get('subject', '') or payload.get('headers', {}).get('subject', '')
+        sender  = (
+            payload.get('from', '') or
+            payload.get('sender', '') or
+            payload.get('headers', {}).get('fromEmail', '')
+        )
+        body = payload.get('body', '') or payload.get('text', '')
+        html = payload.get('html', '') or payload.get('html_content', '')
+        raw_links = payload.get('links', []) or []
+        atts = payload.get('attachments', []) or []
+
+        # --- Normalize links (keep real targets even if Gmail uses redirects) ---
+        from urllib.parse import urlparse, parse_qs, unquote
+
+        def unwrap_gmail_redirect(u: str) -> str:
+            """If Gmail wrapped the link (e.g., ?url=ENCODED), return the underlying URL."""
+            try:
+                if not u:
+                    return u
+                p = urlparse(u)
+                qs = parse_qs(p.query)
+                if 'url' in qs and qs['url']:
+                    return unquote(qs['url'][0])
+                return u
+            except Exception:
+                return u
+
+        norm_links = []
+        for L in raw_links:
+            # Support dict or string
+            if isinstance(L, str):
+                candidate = L
+                text_val = ''
+                safer = ''
+            else:
+                candidate = (L.get('url') or L.get('href') or L.get('safeRedirectUrl') or '').strip()
+                text_val  = (L.get('text') or '').strip()
+                safer     = (L.get('safeRedirectUrl') or '').strip()
+
+            final_url = unwrap_gmail_redirect(candidate or safer)
+            if final_url:
+                norm_links.append({'text': text_val, 'url': final_url})
+
+        # Fallback: extract links from HTML if none were provided
+        if not norm_links and html:
+            try:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(html, 'html.parser')
+                for a in soup.find_all('a', href=True):
+                    norm_links.append({
+                        'text': (a.get_text(strip=True) or ''),
+                        'url' : unwrap_gmail_redirect(a['href'])
+                    })
+            except Exception:
+                pass
+
+        # --- Run your model exactly like the .eml path does ---
+        model_out = detector.analyze_email(body, html)
+        result = _build_email_result_from_parts(
+            subject=subject,
+            sender=sender,
+            body_text=body,
+            html_text=html,
+            links=norm_links,
+            attachments=atts,
+            model_output=model_out if isinstance(model_out, dict) else {}
+        )
+
+        # --- Stage data in session for /email_analysis_result ---
+        now_iso = datetime.utcnow().isoformat()
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence': result['confidence'],
+            'features': result['features'],
+            'metadata': {
+                'subject': subject,
+                'sender': sender,
+                'date': now_iso
+            },
+            'explanation': result.get('explanation'),
+        }
+
+        # --- Persist to DB history (same shape as your other flows) ---
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO analysis_history
+              (input_string, input_type, is_malicious, main_verdict, community_score,
+               metadata, vendor_analysis, user_id, analysis_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            (body or html)[:5000],
+            'email',
+            1 if result['is_phishing'] else 0,
+            'phishing' if result['is_phishing'] else 'safe',
+            None,
+            json.dumps({'subject': subject, 'sender': sender, 'date': now_iso}),
+            json.dumps([]),
+            session.get('user_id'),
+            get_singapore_time()
+        ))
+        analysis_id = c.lastrowid
+        conn.commit()
+        conn.close()
+
+        session['email_analysis_id'] = analysis_id
+
+        # --- Temp file for the result page (HTML/body/links/attachments) ---
+        try:
+            tmp_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+            with open(tmp_path, 'w') as f:
+                json.dump({
+                    'html_content': html,
+                    'body': body,
+                    'embedded_links': norm_links,
+                    'attachments': atts
+                }, f)
+        except Exception:
+            pass
+
+        # Extension expects a JSON redirect (the modal will load this URL)
+        return jsonify({"redirect": url_for('email_analysis_result')})
+
+    except Exception as e:
+        logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Server error'}), 500
 
 @app.errorhandler(404)
 async def not_found(e):
@@ -3504,6 +3535,7 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
