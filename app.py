@@ -70,21 +70,34 @@ load_dotenv()
 
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
+# Cookies must be third-party friendly (extension → your app)
 app.config.update(
-    SESSION_COOKIE_SAMESITE="None",   # cookie can be set via extension requests
-    SESSION_COOKIE_SECURE=True
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True,
 )
 
+# CORS + allow embedding in iframe from Gmail/extension
 @app.after_request
-async def add_cors_headers(response):
+async def add_headers(resp):
+    # CORS for XHR/fetch from chrome-extension://*
     origin = request.headers.get('Origin', '')
     if origin:
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Vary'] = 'Origin'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
-    return response
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Vary'] = 'Origin'
+    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+
+    # Let Gmail/extension embed your pages in an iframe
+    # (remove XFO if a security lib added it; set frame-ancestors explicitly)
+    try:
+        resp.headers.pop('X-Frame-Options')
+    except Exception:
+        pass
+    resp.headers['Content-Security-Policy'] = (
+        "frame-ancestors 'self' https://mail.google.com chrome-extension://*"
+    )
+    return resp
 
 @app.route('/options', methods=['OPTIONS'])
 async def handle_options():
@@ -2425,7 +2438,6 @@ async def upload_email():
         except Exception:
             pass
 
-
 @app.route('/email_analysis_result')
 @login_required
 async def email_analysis_result():
@@ -2436,7 +2448,6 @@ async def email_analysis_result():
         if not analysis or not analysis_id:
             return redirect(url_for('email_analysis'))
 
-        # Load the extra (body/html/etc) saved by the extension endpoints
         temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
         try:
             with open(temp_data_path, 'r') as f:
@@ -2444,11 +2455,19 @@ async def email_analysis_result():
         except FileNotFoundError:
             additional_data = {}
 
-        # ---- Safe metadata access (no KeyError: 'date') ----
-        meta        = analysis.get('metadata') or {}
+        # Safe metadata reads
+        meta         = analysis.get('metadata') or {}
         safe_subject = meta.get('subject') or analysis.get('subject') or ''
         safe_sender  = meta.get('sender')  or meta.get('from') or analysis.get('sender') or ''
         safe_date    = meta.get('date')    or meta.get('Date') or analysis.get('analysis_date') or ''
+
+        # Explanation: your template expects a dict with .risk_assessment...
+        explanation = analysis.get('explanation')
+        if isinstance(explanation, str) or explanation is None:
+            explanation = {
+                'text': explanation or '',
+                'risk_assessment': {'url_risk': 'Unknown', 'sender_risk': 'Unknown'}
+            }
 
         result = {
             'is_phishing'   : analysis.get('is_phishing', False),
@@ -2461,14 +2480,13 @@ async def email_analysis_result():
             'html_content'  : additional_data.get('html_content', ''),
             'embedded_links': additional_data.get('embedded_links', []),
             'attachments'   : additional_data.get('attachments', []),
-            'explanation'   : analysis.get('explanation', ''),
+            'explanation'   : explanation,
         }
 
-        # Best-effort save to analysis_history so it appears in History
+        # Best-effort: store row for history
         try:
             conn = get_db_connection()
             c = conn.cursor()
-
             user_id       = session.get('user_id')
             input_string  = result['sender'] or result['subject']
             input_type    = 'email'
@@ -2483,7 +2501,7 @@ async def email_analysis_result():
                 'features'      : result['features'],
                 'embedded_links': result['embedded_links'],
                 'attachments'   : result['attachments'],
-                'date'          : result['date'],  # ensure UI always has a date
+                'date'          : result['date'],
             }
 
             c.execute("""
@@ -2500,16 +2518,19 @@ async def email_analysis_result():
         except Exception as e:
             logger.error(f"Error saving email analysis to history: {str(e)}", exc_info=True)
 
-        # Clean up and render
+        # cleanup + render
         try: os.unlink(temp_data_path)
         except: pass
         session.pop('email_analysis', None)
         session.pop('email_analysis_id', None)
 
-        return await render_template('email_analysis_result.html', result=result, additional_data=additional_data)
+        return await render_template('email_analysis_result.html',
+                                     result=result,
+                                     additional_data=additional_data)
     except Exception as e:
         logger.error(f"Error displaying analysis result: {str(e)}", exc_info=True)
         return redirect(url_for('email_analysis'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 async def login():
@@ -3228,20 +3249,30 @@ async def api_analyze_email():
             }
         }), 500
 
+def _require_login_json():
+    if 'user_id' not in session:
+        return jsonify({
+            "login_required": True,
+            "redirect": url_for('login', next=url_for('email_analysis_result'))
+        }), 401
+    return None
+
 @app.route('/api/ext/analyze-and-store', methods=['OPTIONS', 'POST'])
-@login_required
 async def ext_analyze_and_store():
     if request.method == 'OPTIONS':
         return '', 204
+
+    # JSON-friendly auth gate (instead of redirect from @login_required)
+    gate = _require_login_json()
+    if gate: return gate
+
     try:
         data = await request.get_json(silent=True) or {}
         email_content = data.get('email_content', '')
-
         if not email_content:
             return jsonify({'error': 'email_content required'}), 400
 
-        # The extension may send a stringified JSON; parse it if so
-        subject = ''; sender = ''; body = ''; html = ''
+        subject = sender = body = html = ''
         try:
             payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
             subject = payload.get('subject','') or payload.get('headers',{}).get('subject','')
@@ -3249,32 +3280,27 @@ async def ext_analyze_and_store():
             body    = payload.get('text','')    or payload.get('body','')
             html    = payload.get('html','')    or payload.get('html_content','')
         except Exception:
-            # fallback: treat as plain text
             body = email_content if isinstance(email_content, str) else ''
 
-        # Run your model (sync call shown here)
+        # Run model (your function)
         model_out = detector.analyze_email(body, html)
 
-        # Unified result (use your existing helper if you prefer)
         result = _build_email_result_from_parts(
             subject=subject, sender=sender, body_text=body, html_text=html,
             links=[], attachments=[], model_output=model_out if isinstance(model_out, dict) else {}
         )
 
-        # Store minimal data in session for the result view
         now_iso = datetime.utcnow().isoformat()
         session['email_analysis'] = {
             'is_phishing': result['is_phishing'],
             'confidence' : result['confidence'],
             'features'   : result['features'],
             'metadata'   : {
-                'subject': subject,
-                'sender' : sender,
-                'date'   : now_iso,  # <-- put 'date' here so the UI has it
-            }
+                'subject': subject, 'sender': sender, 'date': now_iso
+            },
+            'explanation': result.get('explanation')  # keep dict if your helper returns it
         }
 
-        # Create DB row
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("""
@@ -3294,24 +3320,16 @@ async def ext_analyze_and_store():
             get_singapore_time()
         ))
         analysis_id = c.lastrowid
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         session['email_analysis_id'] = analysis_id
 
-        # Save additional data to a temp file that the result page will read
+        # temp file for the view
         try:
-            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
-            with open(temp_data_path, 'w') as f:
-                json.dump({
-                    'html_content': html,
-                    'body': body,
-                    'embedded_links': [],
-                    'attachments': []
-                }, f)
+            with open(os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json'), 'w') as f:
+                json.dump({'html_content': html, 'body': body, 'embedded_links': [], 'attachments': []}, f)
         except Exception:
             pass
 
-        # Return the RESULT page for the modal
         return jsonify({"redirect": url_for('email_analysis_result')})
     except Exception as e:
         logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
@@ -3319,10 +3337,13 @@ async def ext_analyze_and_store():
 
 
 @app.route('/api/ext/upload-eml-and-store', methods=['OPTIONS', 'POST'])
-@login_required
 async def ext_upload_eml_and_store():
     if request.method == 'OPTIONS':
         return '', 204
+
+    gate = _require_login_json()
+    if gate: return gate
+
     try:
         files = await request.files
         file = files.get('file')
@@ -3335,11 +3356,9 @@ async def ext_upload_eml_and_store():
             return jsonify({'error':'Invalid file type'}), 400
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            # Quart file objects support .save(); offload with to_thread
-            await asyncio.to_thread(file.save, tmp.name)
+            await file.save(tmp.name)  # <-- IMPORTANT: await (Quart's FileStorage.save is async)
             temp_path = tmp.name
 
-        # Parse and analyze using your existing helpers
         email_data = parse_email_file(temp_path, ext)
         body_text  = email_data.get('body','') or ''
         html_text  = email_data.get('html_content','') or ''
@@ -3355,7 +3374,6 @@ async def ext_upload_eml_and_store():
             model_output=model_out if isinstance(model_out, dict) else {}
         )
 
-        # Put data in session for the result page
         now_iso = datetime.utcnow().isoformat()
         session['email_analysis'] = {
             'is_phishing': result['is_phishing'],
@@ -3364,11 +3382,11 @@ async def ext_upload_eml_and_store():
             'metadata'   : {
                 'subject': email_data.get('subject',''),
                 'sender' : email_data.get('sender',''),
-                'date'   : now_iso,  # <-- provide 'date' field
-            }
+                'date'   : now_iso
+            },
+            'explanation': result.get('explanation')
         }
 
-        # DB row
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("""
@@ -3392,14 +3410,11 @@ async def ext_upload_eml_and_store():
             get_singapore_time()
         ))
         analysis_id = c.lastrowid
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         session['email_analysis_id'] = analysis_id
 
-        # Temp file that the result view reads
         try:
-            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
-            with open(temp_data_path, 'w') as f:
+            with open(os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json'), 'w') as f:
                 json.dump({
                     'html_content': html_text,
                     'body': body_text,
@@ -3409,7 +3424,6 @@ async def ext_upload_eml_and_store():
         except Exception:
             pass
 
-        # Return the RESULT page for the modal
         return jsonify({"redirect": url_for('email_analysis_result')})
     except Exception as e:
         logger.error(f"/api/ext/upload-eml-and-store error: {str(e)}", exc_info=True)
@@ -3439,5 +3453,6 @@ if __name__ == '__main__':
     migrate_database()  # This will handle both new and existing databases
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
