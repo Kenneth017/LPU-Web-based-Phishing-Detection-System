@@ -70,10 +70,11 @@ load_dotenv()
 
 app = Quart(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.getenv('SECRET_KEY')
-app.config.update(SESSION_COOKIE_SAMESITE='None', SESSION_COOKIE_SECURE=True)
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",   # cookie can be set via extension requests
+    SESSION_COOKIE_SECURE=True
+)
 
-
-# CORS setup
 @app.after_request
 async def add_cors_headers(response):
     origin = request.headers.get('Origin', '')
@@ -2429,105 +2430,83 @@ async def upload_email():
 @login_required
 async def email_analysis_result():
     try:
-        analysis = session.get('email_analysis')
+        analysis    = session.get('email_analysis')
         analysis_id = session.get('email_analysis_id')
-        
+
         if not analysis or not analysis_id:
             return redirect(url_for('email_analysis'))
-        
-        # Load additional data from temporary file
+
+        # Load the extra (body/html/etc) saved by the extension endpoints
         temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
         try:
             with open(temp_data_path, 'r') as f:
                 additional_data = json.load(f)
         except FileNotFoundError:
             additional_data = {}
-        
-        # Combine the data
+
+        # ---- Safe metadata access (no KeyError: 'date') ----
+        meta        = analysis.get('metadata') or {}
+        safe_subject = meta.get('subject') or analysis.get('subject') or ''
+        safe_sender  = meta.get('sender')  or meta.get('from') or analysis.get('sender') or ''
+        safe_date    = meta.get('date')    or meta.get('Date') or analysis.get('analysis_date') or ''
+
         result = {
-            'is_phishing': analysis['is_phishing'],
-            'confidence': analysis['confidence'],
-            'features': analysis['features'],
-            'subject': analysis['metadata']['subject'],
-            'sender': analysis['metadata']['sender'],
-            'date': analysis['metadata']['date'],
-            'body': additional_data.get('body', ''),
-            'html_content': additional_data.get('html_content', ''),
+            'is_phishing'   : analysis.get('is_phishing', False),
+            'confidence'    : analysis.get('confidence', 0.0),
+            'features'      : analysis.get('features', {}),
+            'subject'       : safe_subject,
+            'sender'        : safe_sender,
+            'date'          : safe_date,
+            'body'          : additional_data.get('body', ''),
+            'html_content'  : additional_data.get('html_content', ''),
             'embedded_links': additional_data.get('embedded_links', []),
-            'attachments': additional_data.get('attachments', []),
-            'explanation': analysis['explanation']  # Changed this line
+            'attachments'   : additional_data.get('attachments', []),
+            'explanation'   : analysis.get('explanation', ''),
         }
 
-        # Debug logging for URL detection
-        # logger.debug(f"Embedded links: {embedded_links}")
-
-        # Save to analysis history
+        # Best-effort save to analysis_history so it appears in History
         try:
             conn = get_db_connection()
             c = conn.cursor()
-            
-            # Prepare the data for insertion
-            user_id = session.get('user_id')
-            input_string = result['sender']  # or could be result['subject']
-            input_type = 'email'
-            main_verdict = 'phishing' if result['is_phishing'] else 'safe'
-            analysis_date = get_singapore_time()
-            is_malicious = 1 if result['is_phishing'] else 0
-            
-            # Convert features and additional data to JSON string for metadata
-            metadata = json.dumps({
-                'subject': result['subject'],
-                'sender': result['sender'],
-                'confidence': result['confidence'],
-                'features': result['features'],
-                'embedded_links': result['embedded_links'],
-                'attachments': result['attachments']
-            })
 
-            # Insert into database
+            user_id       = session.get('user_id')
+            input_string  = result['sender'] or result['subject']
+            input_type    = 'email'
+            main_verdict  = 'phishing' if result['is_phishing'] else 'safe'
+            analysis_date = get_singapore_time()
+            is_malicious  = 1 if result['is_phishing'] else 0
+
+            metadata_obj = {
+                'subject'       : result['subject'],
+                'sender'        : result['sender'],
+                'confidence'    : result['confidence'],
+                'features'      : result['features'],
+                'embedded_links': result['embedded_links'],
+                'attachments'   : result['attachments'],
+                'date'          : result['date'],  # ensure UI always has a date
+            }
+
             c.execute("""
                 INSERT INTO analysis_history (
-                    user_id, 
-                    input_string, 
-                    input_type, 
-                    main_verdict, 
-                    analysis_date, 
-                    metadata,
-                    is_malicious
+                    user_id, input_string, input_type, main_verdict,
+                    analysis_date, metadata, is_malicious
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
-                user_id,
-                input_string,
-                input_type,
-                main_verdict,
-                analysis_date,
-                metadata,
-                is_malicious
+                user_id, input_string, input_type, main_verdict,
+                analysis_date, json.dumps(metadata_obj), is_malicious
             ))
-            
             conn.commit()
             conn.close()
-
         except Exception as e:
             logger.error(f"Error saving email analysis to history: {str(e)}", exc_info=True)
-            # Continue with the response even if saving to history fails
-        
-        # Clean up
-        try:
-            os.unlink(temp_data_path)
-        except:
-            pass
-            
+
+        # Clean up and render
+        try: os.unlink(temp_data_path)
+        except: pass
         session.pop('email_analysis', None)
         session.pop('email_analysis_id', None)
-        
-        # Pass both result and additional_data to the template for debugging
-        return await render_template(
-            'email_analysis_result.html', 
-            result=result,
-            additional_data=additional_data
-        )
-        
+
+        return await render_template('email_analysis_result.html', result=result, additional_data=additional_data)
     except Exception as e:
         logger.error(f"Error displaying analysis result: {str(e)}", exc_info=True)
         return redirect(url_for('email_analysis'))
@@ -3249,6 +3228,193 @@ async def api_analyze_email():
             }
         }), 500
 
+@app.route('/api/ext/analyze-and-store', methods=['OPTIONS', 'POST'])
+@login_required
+async def ext_analyze_and_store():
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        data = await request.get_json(silent=True) or {}
+        email_content = data.get('email_content', '')
+
+        if not email_content:
+            return jsonify({'error': 'email_content required'}), 400
+
+        # The extension may send a stringified JSON; parse it if so
+        subject = ''; sender = ''; body = ''; html = ''
+        try:
+            payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
+            subject = payload.get('subject','') or payload.get('headers',{}).get('subject','')
+            sender  = payload.get('from','')    or payload.get('sender','') or payload.get('headers',{}).get('fromEmail','')
+            body    = payload.get('text','')    or payload.get('body','')
+            html    = payload.get('html','')    or payload.get('html_content','')
+        except Exception:
+            # fallback: treat as plain text
+            body = email_content if isinstance(email_content, str) else ''
+
+        # Run your model (sync call shown here)
+        model_out = detector.analyze_email(body, html)
+
+        # Unified result (use your existing helper if you prefer)
+        result = _build_email_result_from_parts(
+            subject=subject, sender=sender, body_text=body, html_text=html,
+            links=[], attachments=[], model_output=model_out if isinstance(model_out, dict) else {}
+        )
+
+        # Store minimal data in session for the result view
+        now_iso = datetime.utcnow().isoformat()
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence' : result['confidence'],
+            'features'   : result['features'],
+            'metadata'   : {
+                'subject': subject,
+                'sender' : sender,
+                'date'   : now_iso,  # <-- put 'date' here so the UI has it
+            }
+        }
+
+        # Create DB row
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO analysis_history
+              (input_string, input_type, is_malicious, main_verdict, community_score,
+               metadata, vendor_analysis, user_id, analysis_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            (body or html)[:5000],
+            'email',
+            1 if result['is_phishing'] else 0,
+            'phishing' if result['is_phishing'] else 'safe',
+            None,
+            json.dumps({'subject': subject, 'sender': sender, 'date': now_iso}),
+            json.dumps([]),
+            session.get('user_id'),
+            get_singapore_time()
+        ))
+        analysis_id = c.lastrowid
+        conn.commit()
+        conn.close()
+        session['email_analysis_id'] = analysis_id
+
+        # Save additional data to a temp file that the result page will read
+        try:
+            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+            with open(temp_data_path, 'w') as f:
+                json.dump({
+                    'html_content': html,
+                    'body': body,
+                    'embedded_links': [],
+                    'attachments': []
+                }, f)
+        except Exception:
+            pass
+
+        # Return the RESULT page for the modal
+        return jsonify({"redirect": url_for('email_analysis_result')})
+    except Exception as e:
+        logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
+        return jsonify({'error':'Server error'}), 500
+
+
+@app.route('/api/ext/upload-eml-and-store', methods=['OPTIONS', 'POST'])
+@login_required
+async def ext_upload_eml_and_store():
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        files = await request.files
+        file = files.get('file')
+        if not file:
+            return jsonify({'error':'file is required'}), 400
+
+        filename = file.filename or 'upload.eml'
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ('.eml', '.msg'):
+            return jsonify({'error':'Invalid file type'}), 400
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            # Quart file objects support .save(); offload with to_thread
+            await asyncio.to_thread(file.save, tmp.name)
+            temp_path = tmp.name
+
+        # Parse and analyze using your existing helpers
+        email_data = parse_email_file(temp_path, ext)
+        body_text  = email_data.get('body','') or ''
+        html_text  = email_data.get('html_content','') or ''
+        model_out  = detector.analyze_email(body_text, html_text)
+
+        result = _build_email_result_from_parts(
+            subject=email_data.get('subject',''),
+            sender=email_data.get('sender',''),
+            body_text=body_text,
+            html_text=html_text,
+            links=email_data.get('embedded_links', []),
+            attachments=email_data.get('attachments', []),
+            model_output=model_out if isinstance(model_out, dict) else {}
+        )
+
+        # Put data in session for the result page
+        now_iso = datetime.utcnow().isoformat()
+        session['email_analysis'] = {
+            'is_phishing': result['is_phishing'],
+            'confidence' : result['confidence'],
+            'features'   : result['features'],
+            'metadata'   : {
+                'subject': email_data.get('subject',''),
+                'sender' : email_data.get('sender',''),
+                'date'   : now_iso,  # <-- provide 'date' field
+            }
+        }
+
+        # DB row
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO analysis_history
+              (input_string, input_type, is_malicious, main_verdict, community_score,
+               metadata, vendor_analysis, user_id, analysis_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            (body_text or html_text)[:5000],
+            'email',
+            1 if result['is_phishing'] else 0,
+            'phishing' if result['is_phishing'] else 'safe',
+            None,
+            json.dumps({
+                'subject': email_data.get('subject',''),
+                'sender' : email_data.get('sender',''),
+                'date'   : now_iso
+            }),
+            json.dumps([]),
+            session.get('user_id'),
+            get_singapore_time()
+        ))
+        analysis_id = c.lastrowid
+        conn.commit()
+        conn.close()
+        session['email_analysis_id'] = analysis_id
+
+        # Temp file that the result view reads
+        try:
+            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
+            with open(temp_data_path, 'w') as f:
+                json.dump({
+                    'html_content': html_text,
+                    'body': body_text,
+                    'embedded_links': email_data.get('embedded_links', []),
+                    'attachments': email_data.get('attachments', [])
+                }, f)
+        except Exception:
+            pass
+
+        # Return the RESULT page for the modal
+        return jsonify({"redirect": url_for('email_analysis_result')})
+    except Exception as e:
+        logger.error(f"/api/ext/upload-eml-and-store error: {str(e)}", exc_info=True)
+        return jsonify({'error':'Server error'}), 500
+
 
 @app.errorhandler(404)
 async def not_found(e):
@@ -3275,169 +3441,3 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
 
 
-# ===== Extension endpoints =====
-@app.route('/api/ext/analyze-and-store', methods=['OPTIONS', 'POST'])
-@login_required
-async def ext_analyze_and_store():
-    if request.method == 'OPTIONS':
-        return '', 204
-    try:
-        data = await request.get_json()
-        email_content = data.get('email_content', '')
-        if not email_content:
-            return jsonify({'error': 'email_content required'}), 400
-
-        # If content is a JSON string, attempt to parse for subject/sender/body/html
-        subject=''; sender=''; body=''; html=''
-        try:
-            payload = json.loads(email_content) if isinstance(email_content, str) else (email_content or {})
-            subject = payload.get('subject','') or payload.get('headers',{}).get('subject','')
-            sender  = payload.get('from','') or payload.get('sender','') or payload.get('headers',{}).get('fromEmail','')
-            body    = payload.get('text','') or payload.get('body','')
-            html    = payload.get('html','') or payload.get('html_content','')
-        except Exception:
-            body = email_content
-
-        # Run your existing model
-        model_out = detector.analyze_email(body, html)
-
-        # Build unified result
-        result = _build_email_result_from_parts(
-            subject=subject, sender=sender, body_text=body, html_text=html,
-            links=[], attachments=[], model_output=model_out if isinstance(model_out, dict) else {}
-        )
-
-        # Store minimal temp data to render email_analysis_result
-        session['email_analysis'] = {
-            'is_phishing': result['is_phishing'],
-            'confidence': result['confidence'],
-            'features': result['features'],
-            'metadata': {
-                'subject': subject,
-                'sender': sender,
-                'analysis_date': datetime.utcnow().isoformat()
-            }
-        }
-
-        # Save additional details in a temp file and DB history
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO analysis_history
-              (input_string, input_type, is_malicious, main_verdict, community_score,
-               metadata, vendor_analysis, user_id, analysis_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            (body or html)[:5000],
-            'email',
-            1 if result['is_phishing'] else 0,
-            'phishing' if result['is_phishing'] else 'safe',
-            None,
-            json.dumps({'subject': subject, 'sender': sender}),
-            json.dumps([]),
-            session.get('user_id'),
-            get_singapore_time()
-        ))
-        analysis_id = c.lastrowid
-        conn.commit()
-        conn.close()
-        session['email_analysis_id'] = analysis_id
-
-        # Write additional data to temp file
-        try:
-            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
-            with open(temp_data_path, 'w') as f:
-                json.dump({
-                    'html_content': html,
-                    'body': body
-                }, f)
-        except Exception:
-            pass
-
-        return jsonify({'redirect': url_for('email_analysis_result')})
-    except Exception as e:
-        logger.error(f"/api/ext/analyze-and-store error: {str(e)}", exc_info=True)
-        return jsonify({'error':'Server error'}), 500
-
-
-@app.route('/api/ext/upload-eml-and-store', methods=['OPTIONS', 'POST'])
-@login_required
-async def ext_upload_eml_and_store():
-    if request.method == 'OPTIONS':
-        return '', 204
-    try:
-        files = await request.files
-        file = files.get('file')
-        if not file:
-            return jsonify({'error':'file is required'}), 400
-
-        filename = file.filename or 'upload.eml'
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in ('.eml', '.msg'):
-            return jsonify({'error':'Invalid file type'}), 400
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            await asyncio.to_thread(file.save, tmp.name)
-            temp_path = tmp.name
-
-        email_data = parse_email_file(temp_path, ext)
-        body_text = email_data.get('body','') or ''
-        html_text = email_data.get('html_content','') or ''
-        model_out = detector.analyze_email(body_text, html_text)
-
-        result = _build_email_result_from_parts(
-            subject=email_data.get('subject',''),
-            sender=email_data.get('sender',''),
-            body_text=body_text,
-            html_text=html_text,
-            links=email_data.get('embedded_links', []),
-            attachments=email_data.get('attachments', []),
-            model_output=model_out if isinstance(model_out, dict) else {}
-        )
-
-        session['email_analysis'] = {
-            'is_phishing': result['is_phishing'],
-            'confidence': result['confidence'],
-            'features': result['features'],
-            'metadata': {
-                'subject': email_data.get('subject',''),
-                'sender': email_data.get('sender',''),
-                'analysis_date': datetime.utcnow().isoformat()
-            }
-        }
-
-        # Save additional data to disk and DB
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO analysis_history
-              (input_string, input_type, is_malicious, main_verdict, community_score,
-               metadata, vendor_analysis, user_id, analysis_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            (body_text or html_text)[:5000],
-            'email',
-            1 if result['is_phishing'] else 0,
-            'phishing' if result['is_phishing'] else 'safe',
-            None,
-            json.dumps({'subject': email_data.get('subject',''), 'sender': email_data.get('sender','')}),
-            json.dumps([]),
-            session.get('user_id'),
-            get_singapore_time()
-        ))
-        analysis_id = c.lastrowid
-        conn.commit()
-        conn.close()
-        session['email_analysis_id'] = analysis_id
-
-        try:
-            temp_data_path = os.path.join(tempfile.gettempdir(), f'email_analysis_{analysis_id}.json')
-            with open(temp_data_path, 'w') as f:
-                json.dump({'html_content': html_text, 'body': body_text}, f)
-        except Exception:
-            pass
-
-        return jsonify({'redirect': url_for('email_analysis_result')})
-    except Exception as e:
-        logger.error(f"/api/ext/upload-eml-and-store error: {str(e)}", exc_info=True)
-        return jsonify({'error':'Server error'}), 500
